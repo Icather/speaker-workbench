@@ -15,6 +15,10 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 - CONTRIBUTING's change map now names **all** paired documents rather than just the READMEs.
 
+### Fixed
+
+- **The right-hand list could not scroll** — it grew past the viewport and was then clipped by `body{overflow:hidden}`, so a long corpus showed an incomplete list with no way to reach the rest. Cause: `main.active` is a grid whose implicit row was sized by its content, and grid/flex items default to `min-height:auto` — so `.cliplist`'s `flex:1` grew its parent instead of scrolling inside it. Fixed with `grid-template-rows:minmax(0,1fr)` plus `min-height:0` on `.stage`, `.cliplist`, `.pane` and `aside`. Neither test suite can catch this class of bug: jsdom does not compute layout, which is exactly what CONTRIBUTING warns about for UI changes.
+
 ## [0.1.0] — 2026-09-25
 
 First public release. Extracted from a private tool that was being used to resolve speaker identities across a 10-recording, ~7-hour far-field corpus.

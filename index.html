@@ -42,12 +42,16 @@ header .sep{width:1px;height:22px;background:var(--line)}
 .badge.C{color:var(--fg3)}
 
 /* ── layout ───────────────────────────────────────────── */
+/* ⚠️ `minmax(0,1fr)` 和三处 `min-height:0` 是必需的，不是保险 —— 别"整理"掉。
+   grid/flex 项默认 `min-height:auto`：它会被内容**撑开**而不是收缩。少一处，
+   右栏的 .cliplist 就只会把 .stage 一起顶高、整块溢出到视口外，再被
+   body{overflow:hidden} 裁掉 —— 症状正是「列表滚不动、内容显示不完」。 */
 main{display:none;height:calc(100vh - 45px)}
-main.active{display:grid}
+main.active{display:grid;grid-template-rows:minmax(0,1fr)}
 #recruit{grid-template-columns:300px 1fr}
 #proof{grid-template-columns:380px 1fr}
-aside{border-right:1px solid var(--line);overflow-y:auto;background:var(--bg2)}
-.pane{overflow-y:auto;display:flex;flex-direction:column}
+aside{border-right:1px solid var(--line);overflow-y:auto;background:var(--bg2);min-height:0}
+.pane{overflow-y:auto;display:flex;flex-direction:column;min-height:0}
 .pad{padding:12px}
 
 /* ── group list ───────────────────────────────────────── */
@@ -63,7 +67,7 @@ aside{border-right:1px solid var(--line);overflow-y:auto;background:var(--bg2)}
 .gmeta{font-size:11px;color:var(--fg3);font-family:var(--mono)}
 
 /* ── stage ────────────────────────────────────────────── */
-.stage{display:flex;flex-direction:column;min-width:0}
+.stage{display:flex;flex-direction:column;min-width:0;min-height:0}
 canvas{display:block;width:100%;background:#010409;cursor:crosshair}
 #waveBig{height:120px;border-bottom:1px solid var(--line)}
 #waveMini{height:34px;border-bottom:1px solid var(--line)}
@@ -90,7 +94,7 @@ canvas{display:block;width:100%;background:#010409;cursor:crosshair}
 .curseg .txt{font-size:17px;line-height:1.6;margin-top:4px}
 .curseg .prev,.curseg .next{font-size:12px;color:var(--fg3);margin-top:6px}
 
-.cliplist{overflow-y:auto;flex:1}
+.cliplist{overflow-y:auto;flex:1;min-height:0}
 .clip{padding:8px 14px;border-bottom:1px solid #21262d;cursor:pointer;display:flex;gap:10px}
 .clip:hover{background:var(--bg2)}
 .clip.on{background:#1f6feb22}

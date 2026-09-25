@@ -15,6 +15,10 @@
 
 - CONTRIBUTING 的改动对照表现在列出**全部**成对文档，而不只是两份 README。
 
+### 修复
+
+- **右栏列表无法滚动** —— 它会一直长到超出视口，然后被 `body{overflow:hidden}` 裁掉，于是一份较长的语料只能看到一个显示不完、又滚不动的列表。成因：`main.active` 是 grid，而它的隐式行高由内容决定；grid/flex 项默认 `min-height:auto`，所以 `.cliplist` 的 `flex:1` 只是把它父级一起顶高，而不是在父级内部滚动。修法：`grid-template-rows:minmax(0,1fr)`，并给 `.stage`、`.cliplist`、`.pane`、`aside` 补 `min-height:0`。**两个测试套件都抓不到这一类 bug** —— jsdom 不做布局计算，这正是 CONTRIBUTING 里对界面改动的那条警告。
+
 ## [0.1.0] — 2026-09-25
 
 首个公开版本。从一个内部工具里抽出 —— 那个工具当时正被用来在一份 10 份录音、约 7 小时的远场语料上确认说话人身份。
