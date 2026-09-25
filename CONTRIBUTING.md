@@ -82,6 +82,7 @@ The usual reason a PR stalls is a half-propagated change. This table is the chec
 | UI behaviour | `tools/test_dom.js` · and check it in a real browser (see below) |
 | the demo corpus | keep `tools/make_demo.py` deterministic and free of heavy dependencies, and keep it reusing `sync.build_tags()` so demo tags match what the pipeline generates |
 | anything user-visible | **both languages**: `README.md`／`README.zh-CN.md` · `CONTRIBUTING.md`／`CONTRIBUTING.zh-CN.md` · `SECURITY.md`／`SECURITY.zh-CN.md` · `CHANGELOG.md`／`CHANGELOG.zh-CN.md` · `docs/*.md`／`docs/*.zh-CN.md` |
+| a command, a trap, or the test-suite split — anything an agent acts on | `AGENTS.md` — **English only, by design**: agents look for that exact filename, so a translated copy would simply never be read |
 
 Every user-facing document is **paired**: `X.md` in English, `X.zh-CN.md` in Chinese, kept in step section by section. If you cannot write both, still open the PR and say so — it will get translated rather than rejected.
 

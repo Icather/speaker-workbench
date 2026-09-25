@@ -238,3 +238,5 @@ Runtime dependencies are permissive or absent: `numpy` (BSD-3), `pypinyin` (MIT)
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) — it is short, and it explains the two rules the test suite enforces and why no threshold may change without a measurement.
+
+**Pointing a coding agent at this repo?** [`AGENTS.md`](AGENTS.md) carries the operational half: exact commands, the tracked-path trap that can quietly stage real recordings, and the assertion rules the test suite requires.

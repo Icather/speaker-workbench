@@ -9,6 +9,7 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 ### Added
 
 - **Chinese translations of every user-facing document** — `CONTRIBUTING.zh-CN.md`, `SECURITY.zh-CN.md`, `CHANGELOG.zh-CN.md`, `docs/METHOD.zh-CN.md` and `docs/FIELD-NOTES.zh-CN.md`, joining the existing `README.zh-CN.md`. Each pair carries a language switch at the top, and every doc-to-doc link inside a Chinese document points at its Chinese counterpart.
+- **`AGENTS.md`** — operational context for coding agents: the exact commands, the tracked-path trap that can quietly stage real recordings for commit, the data-agnostic assertion rule the test suite requires, and the four copies of `_path()`. Kept English-only on purpose — agents look for that exact filename, so a translated copy would never be read.
 
 ### Changed
 

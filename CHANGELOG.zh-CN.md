@@ -9,6 +9,7 @@
 ### 新增
 
 - **所有面向用户的文档都有了中文版** —— `CONTRIBUTING.zh-CN.md`、`SECURITY.zh-CN.md`、`CHANGELOG.zh-CN.md`、`docs/METHOD.zh-CN.md`、`docs/FIELD-NOTES.zh-CN.md`，与已有的 `README.zh-CN.md` 凑齐。每一对都在顶部带一行语言切换，且中文文档内部的每一个文档间链接都指向对应的中文版。
+- **`AGENTS.md`** —— 给编码 agent 的操作上下文：确切的命令、那个会悄悄把真实录音暂存进提交的被跟踪路径陷阱、测试套件强制的"断言必须与数据无关"规矩，以及 `_path()` 的四份拷贝。刻意只保留英文 —— agent 找的就是这个固定文件名，翻译一份出来永远不会被读到。
 
 ### 变更
 

@@ -82,6 +82,7 @@ python tools/make_demo.py
 | 界面行为 | `tools/test_dom.js` · 并在**真实浏览器**里看一眼（见下） |
 | demo 语料 | 保持 `tools/make_demo.py` 确定性、不引入重依赖，并继续复用 `sync.build_tags()`，让 demo 的编号与管线生成的编号一致 |
 | 任何用户可见的东西 | **中英两版**都得改：`README.md`／`README.zh-CN.md` · `CONTRIBUTING.md`／`CONTRIBUTING.zh-CN.md` · `SECURITY.md`／`SECURITY.zh-CN.md` · `CHANGELOG.md`／`CHANGELOG.zh-CN.md` · `docs/*.md`／`docs/*.zh-CN.md` |
+| 命令、坑、或测试套件的分工 —— 任何 agent 会照着做的内容 | `AGENTS.md` —— **刻意只保留英文**：agent 找的就是这个固定文件名，翻译一份出来只会永远不会被读到 |
 
 所有面向用户的文档都是**成对**的：`X.md` 是英文，`X.zh-CN.md` 是中文，两份内容一一对应。**如果你写不了两种语言，照样把 PR 发出来并说明** —— 它会被人翻译，而不是被拒掉。
 

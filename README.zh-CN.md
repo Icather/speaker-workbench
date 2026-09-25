@@ -220,3 +220,5 @@ MIT，见 [LICENSE](LICENSE)。
 ## 参与贡献
 
 见 [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md) —— 它很短，说明了测试套件强制的两条规矩，以及为什么**任何阈值都不许在没有实测的情况下改动**。
+
+**要让 agent 用这个仓库？** [`AGENTS.md`](AGENTS.md) 装的是操作层面的那一半：确切的命令、那个会悄悄把真实录音暂存进提交的被跟踪路径陷阱，以及测试套件强制的断言规矩。
