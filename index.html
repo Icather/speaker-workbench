@@ -21,7 +21,12 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;overflow:hidden}
+/* body 是纵向 flex 容器：header 拿自然高度，main 吃掉剩下的。
+   ⚠️ 别改回 `main{height:calc(100vh - 45px)}` —— header 是 flex-wrap 的，
+   窗口一窄按钮换行、实际高度会从 45px 变成 80px+，那个硬编码值就会让 main
+   溢出视口底部，而 body{overflow:hidden} 会把多出来的部分永久裁掉。 */
+body{background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;overflow:hidden;
+     display:flex;flex-direction:column}
 button,input,select{font-family:inherit;font-size:inherit;color:inherit}
 button{background:var(--bg3);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
 button:hover{background:#30363d;border-color:#484f58}
@@ -33,7 +38,7 @@ input:focus{border-color:var(--acc)}
 .small{font-size:12px}
 
 /* ── header ───────────────────────────────────────────── */
-header{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--line);flex-wrap:wrap;flex:0 0 auto}
 header .sep{width:1px;height:22px;background:var(--line)}
 .spacer{flex:1}
 .badge{font-size:11px;padding:1px 6px;border-radius:10px;border:1px solid var(--line);color:var(--fg2)}
@@ -46,7 +51,7 @@ header .sep{width:1px;height:22px;background:var(--line)}
    grid/flex 项默认 `min-height:auto`：它会被内容**撑开**而不是收缩。少一处，
    右栏的 .cliplist 就只会把 .stage 一起顶高、整块溢出到视口外，再被
    body{overflow:hidden} 裁掉 —— 症状正是「列表滚不动、内容显示不完」。 */
-main{display:none;height:calc(100vh - 45px)}
+main{display:none;flex:1 1 auto;min-height:0}
 main.active{display:grid;grid-template-rows:minmax(0,1fr)}
 #recruit{grid-template-columns:300px 1fr}
 #proof{grid-template-columns:380px 1fr}

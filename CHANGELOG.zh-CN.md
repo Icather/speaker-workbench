@@ -17,6 +17,7 @@
 
 ### 修复
 
+- **在多数窗口宽度下，页面底部够不着。** `main` 用的是 `height:calc(100vh - 45px)` —— 45px 是对 header 高度的**硬编码猜测**。但 header 是 `flex-wrap` 的，真实高度随窗口变化：实测 **1600px 宽时 46px、1280 时 84px、900 时 85px、760 时 123px**。只要它超过 45px，`main` 就溢出视口，而 `body{overflow:hidden}` 让多出来的部分**永远够不着** —— 滚动条也救不回来。修法：让 `body` 变成纵向 flex 容器（`header` 拿自然高度，`main` 吃掉剩下的），把那套 `100vh` 算术删掉。五个宽度全部复验：`main` 的底边现在正好落在视口高度上。这个 bug 能藏这么久，是因为 1600px 下那个猜测**碰巧是对的**。
 - **右栏列表无法滚动** —— 它会一直长到超出视口，然后被 `body{overflow:hidden}` 裁掉，于是一份较长的语料只能看到一个显示不完、又滚不动的列表。成因：`main.active` 是 grid，而它的隐式行高由内容决定；grid/flex 项默认 `min-height:auto`，所以 `.cliplist` 的 `flex:1` 只是把它父级一起顶高，而不是在父级内部滚动。修法：`grid-template-rows:minmax(0,1fr)`，并给 `.stage`、`.cliplist`、`.pane`、`aside` 补 `min-height:0`。**两个测试套件都抓不到这一类 bug** —— jsdom 不做布局计算，这正是 CONTRIBUTING 里对界面改动的那条警告。
 
 ## [0.1.0] — 2026-09-25
