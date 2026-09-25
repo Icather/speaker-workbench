@@ -1,6 +1,8 @@
-# speaker-workbench · 中文说明
+# speaker-workbench
 
-> English: **[README.md](README.md)** —— 这份是中文版，章节与之一一对应。
+[English](README.md) · [中文](README.zh-CN.md)
+
+> 这份是中文版，章节与 [README.md](README.md) 一一对应。
 
 **把 `SPEAKER_00 / SPEAKER_01` 变成真人名 —— 而且是跨整个录音库，不是一次一个文件。**
 
@@ -54,7 +56,7 @@ start.bat          # Windows
 
 仓库自带一份**完全合成的 demo**（假人物、程序合成的语音、自造对话，见 `tools/make_demo.py`）：4 份录音 / 77 句 / 12 组 / 6 个说话人，以 32 kbps mp3 提交。克隆下来直接就能把每个功能点一遍，**不需要 ffmpeg**。重新生成是**确定性的**：每次跑出来的音频、转写稿、声纹都完全一样。
 
-它是**刻意提交进仓库**的 —— 这也正是 `audio/` 和 `data.js` 没有被 gitignore 的原因。克隆下来很方便；但如果你之后把管线指向**自己的语料**，这两个路径会被就地覆盖，紧接着一句 `git add .` 就会把你的真实录音暂存进去。`sync.py` 在覆盖前会先警告；详见 [CONTRIBUTING](CONTRIBUTING.md#developing-against-your-own-audio)。
+它是**刻意提交进仓库**的 —— 这也正是 `audio/` 和 `data.js` 没有被 gitignore 的原因。克隆下来很方便；但如果你之后把管线指向**自己的语料**，这两个路径会被就地覆盖，紧接着一句 `git add .` 就会把你的真实录音暂存进去。`sync.py` 在覆盖前会先警告；详见 [CONTRIBUTING](CONTRIBUTING.zh-CN.md#拿自己的音频来开发)。
 
 > demo 是**故意不完美**的 —— 因为真实管线的输出本来就不完美：一个人横跨 4 份录音中的 3 份；4 个组是已命名者的碎片（这就是「合并」的用途）；2 个组只有 1 段、确实认不出来；还有 1 个人带着两个不同的原始编号，而某个编号又覆盖了两个不同的组。「建议名」的**两档置信度**都能看到：1 条高信 + 4 条弱提示。
 
@@ -64,10 +66,10 @@ start.bat          # Windows
 
 1. **切分** —— 分离这一步由你自己跑 `diarize` / `pyannote` / `FunASR`。它的输出变成本工具读取的转写稿：标准 SRT，每行前缀 `(Speaker N)`。
 2. **切片 + 提声纹** —— 按字幕切成 2–12 秒的片段，编码成 192 维 **CAM++** 声纹（`iic/speech_campplus_sv_zh-cn_16k-common`，3D-Speaker，约 28 MB）。
-3. **两阶段聚类** —— 先用 `complete` linkage 得到纯净小簇，再用 `centroid` linkage 合并这些簇。**单阶段实测行不通**：同一个人跨录音的**单段**只有 **0.579**，而最像的**异人**是 **0.567** —— 任何单一阈值都分不开。详见 [docs/METHOD.md](docs/METHOD.md) §2。
+3. **两阶段聚类** —— 先用 `complete` linkage 得到纯净小簇，再用 `centroid` linkage 合并这些簇。**单阶段实测行不通**：同一个人跨录音的**单段**只有 **0.579**，而最像的**异人**是 **0.567** —— 任何单一阈值都分不开。详见 [docs/METHOD.zh-CN.md](docs/METHOD.zh-CN.md) §2。
 4. **认人，然后复用** —— 你在界面上确认身份；每个确认过的组会变成一条**质心声纹**存进 `speakers.json`，没认的组再去和这个库比对（`sync.py:build_enrollment()`）。
 
-第 1、2 步**都可替换**：任何能产出上述转写格式的分离工具、任何每段输出定长向量的声纹模型都能接。数据格式见 [docs/METHOD.md](docs/METHOD.md) §1，用 `python tools/inspect_embs.py` 自检。
+第 1、2 步**都可替换**：任何能产出上述转写格式的分离工具、任何每段输出定长向量的声纹模型都能接。数据格式见 [docs/METHOD.zh-CN.md](docs/METHOD.zh-CN.md) §1，用 `python tools/inspect_embs.py` 自检。
 
 ---
 
@@ -142,7 +144,7 @@ cp config.example.json config.json
 
 第一次同步**之前**先跑 `python tools/inspect_embs.py`：它会逐项校验上面四类输入，并**指名道姓地告诉你是哪个键对不上** —— 这类错会静默失败，最后表现为「页面是空的」。
 
-产出这些文件的参考管线（CAM++ 声纹 + 两阶段层次聚类）写在 **[docs/METHOD.md](docs/METHOD.md)**。
+产出这些文件的参考管线（CAM++ 声纹 + 两阶段层次聚类）写在 **[docs/METHOD.zh-CN.md](docs/METHOD.zh-CN.md)**。
 
 ### 日常命令
 
@@ -199,7 +201,7 @@ npm run test:dom              # 只跑真实 DOM 套件
 - `Aegisub` / `Subtitle Edit` —— 字幕打轴的交互范式（波形、逐行快捷键、合并/拆分）
 - [arXiv:2509.18377](https://arxiv.org/abs/2509.18377) —— speaker identification 的 *online enrollment* 做法
 - `3D-Speaker` / CAM++ —— 参考管线用的中文声纹模型
-- 方法细节与开源工具调研见 **[docs/METHOD.md](docs/METHOD.md)**、**[docs/FIELD-NOTES.md](docs/FIELD-NOTES.md)**
+- 方法细节与开源工具调研见 **[docs/METHOD.zh-CN.md](docs/METHOD.zh-CN.md)**、**[docs/FIELD-NOTES.zh-CN.md](docs/FIELD-NOTES.zh-CN.md)**
 
 ---
 
@@ -217,4 +219,4 @@ MIT，见 [LICENSE](LICENSE)。
 
 ## 参与贡献
 
-见 [CONTRIBUTING.md](CONTRIBUTING.md)（英文）—— 它很短，说明了测试套件强制的两条规矩，以及为什么**任何阈值都不许在没有实测的情况下改动**。
+见 [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md) —— 它很短，说明了测试套件强制的两条规矩，以及为什么**任何阈值都不许在没有实测的情况下改动**。

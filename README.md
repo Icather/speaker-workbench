@@ -1,5 +1,7 @@
 # speaker-workbench
 
+[English](README.md) · [中文](README.zh-CN.md)
+
 [![tests](https://github.com/Icather/speaker-workbench/actions/workflows/test.yml/badge.svg)](https://github.com/Icather/speaker-workbench/actions/workflows/test.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![runtime deps: none](https://img.shields.io/badge/runtime%20deps-none-success)](#quick-start)

@@ -1,5 +1,7 @@
 # Security & privacy
 
+[English](SECURITY.md) · [中文](SECURITY.zh-CN.md)
+
 This project handles **voiceprints** — biometric data — and the recordings and
 transcripts they come from. Under most privacy regimes that is a sensitive
 category (PIPL art. 28, GDPR art. 9). A privacy bug here is therefore *higher*

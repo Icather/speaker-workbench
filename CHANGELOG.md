@@ -1,10 +1,18 @@
 # Changelog
 
+[English](CHANGELOG.md) · [中文](CHANGELOG.zh-CN.md)
+
 All notable changes are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **Chinese translations of every user-facing document** — `CONTRIBUTING.zh-CN.md`, `SECURITY.zh-CN.md`, `CHANGELOG.zh-CN.md`, `docs/METHOD.zh-CN.md` and `docs/FIELD-NOTES.zh-CN.md`, joining the existing `README.zh-CN.md`. Each pair carries a language switch at the top, and every doc-to-doc link inside a Chinese document points at its Chinese counterpart.
+
+### Changed
+
+- CONTRIBUTING's change map now names **all** paired documents rather than just the READMEs.
 
 ## [0.1.0] — 2026-09-25
 

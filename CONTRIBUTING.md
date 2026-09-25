@@ -1,5 +1,7 @@
 # Contributing
 
+[English](CONTRIBUTING.md) · [中文](CONTRIBUTING.zh-CN.md)
+
 This file is the contract for changes. A PR that ignores it will be asked to change — not over style taste, but because the repo has two things it will not trade away: **measured numbers** and **a demo that runs anywhere**.
 
 - **What this is** — the layer *after* diarization: aligning speaker identities **across** recordings, letting a human name them, then reusing those names.
@@ -79,9 +81,9 @@ The usual reason a PR stalls is a half-propagated change. This table is the chec
 | an export format | the `FMT` table in `index.html` · the export block in `tools/test_dom.js` · README export table · `CHANGELOG.md` |
 | UI behaviour | `tools/test_dom.js` · and check it in a real browser (see below) |
 | the demo corpus | keep `tools/make_demo.py` deterministic and free of heavy dependencies, and keep it reusing `sync.build_tags()` so demo tags match what the pipeline generates |
-| anything user-visible | **both** `README.md` and `README.zh-CN.md` · `CHANGELOG.md` |
+| anything user-visible | **both languages**: `README.md`／`README.zh-CN.md` · `CONTRIBUTING.md`／`CONTRIBUTING.zh-CN.md` · `SECURITY.md`／`SECURITY.zh-CN.md` · `CHANGELOG.md`／`CHANGELOG.zh-CN.md` · `docs/*.md`／`docs/*.zh-CN.md` |
 
-`README.zh-CN.md` mirrors the English README. If you cannot write both, still open the PR and say so — it will get translated rather than rejected.
+Every user-facing document is **paired**: `X.md` in English, `X.zh-CN.md` in Chinese, kept in step section by section. If you cannot write both, still open the PR and say so — it will get translated rather than rejected.
 
 ---
 

@@ -1,5 +1,7 @@
 # Method
 
+[English](METHOD.md) · [中文](METHOD.zh-CN.md)
+
 How the cross-recording layer works, why it is built this way, and what the measured limits are. Everything here is reproducible from the scripts in `tools/`.
 
 ---

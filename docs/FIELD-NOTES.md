@@ -1,5 +1,7 @@
 # Field notes
 
+[English](FIELD-NOTES.md) · [中文](FIELD-NOTES.zh-CN.md)
+
 What already exists, what this project borrows, and where the empty space actually is. Written after surveying GitHub, HuggingFace Spaces, Hacker News and (since the original corpus is Chinese) Bilibili.
 
 ---
