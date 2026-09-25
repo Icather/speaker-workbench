@@ -1,0 +1,15 @@
+# Normalise line endings so the repo behaves the same on every platform.
+# Without this, a Windows checkout would hand Linux users a CRLF start.sh,
+# which fails with "bad interpreter: /bin/sh^M".
+* text=auto eol=lf
+
+# …except the one format that actually needs CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets — never touch.
+*.mp3 binary
+*.wav binary
+*.npz binary
+*.png binary
+*.jpg binary

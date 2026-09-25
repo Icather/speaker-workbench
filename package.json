@@ -1,0 +1,26 @@
+{
+  "name": "speaker-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Turn anonymous diarization speaker IDs into real names across a corpus of recordings",
+  "keywords": [
+    "speaker-diarization",
+    "speaker-identification",
+    "annotation",
+    "rttm",
+    "voiceprint",
+    "speech"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "test": "node tools/test_data.js && node tools/test_dom.js",
+    "test:logic": "node tools/test_data.js",
+    "test:dom": "node tools/test_dom.js",
+    "demo": "python tools/make_demo.py && python tools/sync.py",
+    "start": "python tools/serve.py",
+    "check": "python tools/inspect_embs.py"
+  },
+  "devDependencies": {
+    "jsdom": "^24.0.0"
+  }
+}

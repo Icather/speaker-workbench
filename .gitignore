@@ -1,0 +1,30 @@
+# your own annotations — these change as you work
+voices.json
+voices.bak.json
+
+# your own config (see config.example.json)
+config.json
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# scratch
+*.log
+
+# the demo ships as mp3; wav only appears if ffmpeg was unavailable
+demo/recordings/*.wav
+
+# never commit audit artefacts or the private deny-list -- they contain exactly
+# the strings this project promises not to publish
+*denylist*
+*审计*
+*privacy-audit*

@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>声纹标注台 · speaker-workbench</title>
+<meta name="description" content="把 diarization 输出的匿名 SPEAKER_00 变成真名，并把同一个人跨录音对齐。单文件、零依赖、离线可用。">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1117'/%3E%3Cg fill='%2358a6ff'%3E%3Crect x='7' y='13' width='2.5' height='6' rx='1.25'/%3E%3Crect x='12' y='9' width='2.5' height='14' rx='1.25'/%3E%3Crect x='17' y='11' width='2.5' height='10' rx='1.25'/%3E%3Crect x='22' y='14' width='2.5' height='4' rx='1.25'/%3E%3C/g%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:title" content="speaker-workbench · 声纹标注台">
+<meta property="og:description" content="把 diarization 的匿名说话人 ID 变成真名，并跨录音对齐同一身份。单文件、零依赖。">
+<meta property="og:url" content="https://icather.github.io/speaker-workbench/">
+<meta name="twitter:card" content="summary">
+<style>
+:root{
+  --bg:#0d1117; --bg2:#161b22; --bg3:#21262d; --line:#30363d;
+  --fg:#e6edf3; --fg2:#8b949e; --fg3:#6e7681;
+  --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+  --mono:"Cascadia Mono",Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;overflow:hidden}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+button{background:var(--bg3);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
+button:hover{background:#30363d;border-color:#484f58}
+button.on{background:var(--acc);border-color:var(--acc);color:#0d1117;font-weight:600}
+input{background:var(--bg3);border:1px solid var(--line);border-radius:6px;padding:6px 10px;outline:none}
+input:focus{border-color:var(--acc)}
+.mono{font-family:var(--mono)}
+.dim{color:var(--fg2)}
+.small{font-size:12px}
+
+/* ── header ───────────────────────────────────────────── */
+header{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header .sep{width:1px;height:22px;background:var(--line)}
+.spacer{flex:1}
+.badge{font-size:11px;padding:1px 6px;border-radius:10px;border:1px solid var(--line);color:var(--fg2)}
+.badge.A{color:var(--ok);border-color:#2ea04355;background:#2ea04315}
+.badge.B{color:var(--acc);border-color:#58a6ff55;background:#58a6ff15}
+.badge.C{color:var(--fg3)}
+
+/* ── layout ───────────────────────────────────────────── */
+main{display:none;height:calc(100vh - 45px)}
+main.active{display:grid}
+#recruit{grid-template-columns:300px 1fr}
+#proof{grid-template-columns:380px 1fr}
+aside{border-right:1px solid var(--line);overflow-y:auto;background:var(--bg2)}
+.pane{overflow-y:auto;display:flex;flex-direction:column}
+.pad{padding:12px}
+
+/* ── group list ───────────────────────────────────────── */
+.tools{position:sticky;top:0;background:var(--bg2);border-bottom:1px solid var(--line);padding:8px;z-index:2;display:flex;flex-wrap:wrap;gap:4px}
+.tools button{padding:3px 8px;font-size:12px}
+.gitem{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #21262d;cursor:pointer}
+.gitem:hover{background:var(--bg3)}
+.gitem.cur{background:#1f6feb22;border-left:3px solid var(--acc);padding-left:7px}
+.gitem.done .gname{color:var(--ok)}
+.gid{font-family:var(--mono);font-size:12px;color:var(--fg2);min-width:38px}
+.gname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gname.empty{color:var(--fg3);font-style:italic}
+.gmeta{font-size:11px;color:var(--fg3);font-family:var(--mono)}
+
+/* ── stage ────────────────────────────────────────────── */
+.stage{display:flex;flex-direction:column;min-width:0}
+canvas{display:block;width:100%;background:#010409;cursor:crosshair}
+#waveBig{height:120px;border-bottom:1px solid var(--line)}
+#waveMini{height:34px;border-bottom:1px solid var(--line)}
+
+.card{padding:14px 16px;border-bottom:1px solid var(--line);background:var(--bg2)}
+.card h2{margin:0 0 6px;font-size:20px;display:flex;align-items:center;gap:10px}
+.rowline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+.namebox{font-size:15px;padding:8px 12px;width:100%}
+.acwrap{position:relative;flex:1;min-width:280px;max-width:520px}
+.ac{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg3);
+    border:1px solid #484f58;border-radius:8px;max-height:330px;overflow-y:auto;
+    z-index:30;display:none;box-shadow:0 8px 24px #0009}
+.ac.open{display:block}
+.acitem{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 10px;
+        cursor:pointer;border-bottom:1px solid #21262d}
+.acitem:last-child{border-bottom:none}
+.acitem.on{background:#1f6feb40}
+.acitem .nm{font-weight:700;font-size:14px;min-width:62px}
+.acitem .tg{font-size:11px;color:var(--fg2);background:var(--bg);border:1px solid var(--line);
+            border-radius:10px;padding:0 7px;white-space:nowrap}
+.acitem .pri{font-size:10px;color:var(--acc);margin-left:auto}
+.curseg{margin-top:10px;padding:10px 12px;background:var(--bg3);border-radius:8px;border-left:3px solid var(--acc)}
+.curseg .who{font-size:12px;color:var(--fg2);font-family:var(--mono)}
+.curseg .txt{font-size:17px;line-height:1.6;margin-top:4px}
+.curseg .prev,.curseg .next{font-size:12px;color:var(--fg3);margin-top:6px}
+
+.cliplist{overflow-y:auto;flex:1}
+.clip{padding:8px 14px;border-bottom:1px solid #21262d;cursor:pointer;display:flex;gap:10px}
+.clip:hover{background:var(--bg2)}
+.clip.on{background:#1f6feb22}
+.clip .tc{font-family:var(--mono);font-size:12px;color:var(--fg2);min-width:96px}
+.clip .tx{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── proof mode ───────────────────────────────────────── */
+.sitem{padding:7px 12px;border-bottom:1px solid #21262d;cursor:pointer;display:flex;gap:8px;align-items:baseline}
+.sitem:hover{background:var(--bg3)}
+.sitem.cur{background:#1f6feb22;border-left:3px solid var(--acc)}
+.sitem .who{font-family:var(--mono);font-size:11px;min-width:112px;color:var(--fg2)}
+.sitem .who.hasname{color:var(--ok)}
+.sitem .txt{flex:1;font-size:13px}
+.editor{margin-top:10px;padding:10px 12px;background:var(--bg3);border-radius:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;max-height:180px;overflow-y:auto}
+.chip{padding:3px 9px;border-radius:14px;border:1px solid var(--line);background:var(--bg2);cursor:pointer;font-size:12px}
+.chip:hover{border-color:var(--acc)}
+.chip.on{background:var(--acc);color:#0d1117;border-color:var(--acc)}
+.sugline{margin:0 0 8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.sug{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 9px;border-radius:12px;
+     border:1px dashed var(--ok);color:var(--ok);cursor:pointer;background:#3fb95012}
+.sug.lo{border-color:#484f58;color:var(--fg2);background:transparent}
+.sug:hover{background:#3fb95026}
+.gitem .sug{margin-left:auto;font-size:10px;padding:0 5px}
+.sitem.odd{background:#d2992210}
+.sitem .ms{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--fg3);min-width:52px;text-align:right}
+.sitem.odd .ms{color:var(--warn)}
+.expfmt{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.expfmt .chip{font-size:13px;padding:5px 12px}
+#exPrev{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;
+        max-height:32vh;overflow:auto;white-space:pre-wrap;font-size:11.5px;margin:10px 0 0}
+.cmptbl{font-size:12px;width:100%;border-collapse:collapse}
+.cmptbl td,.cmptbl th{padding:3px 10px 3px 0;border-bottom:1px solid #21262d;text-align:left}
+.cmptbl th{color:var(--fg2);font-weight:600}
+.cmptbl .bar{display:inline-block;height:9px;background:var(--acc);border-radius:2px;vertical-align:middle}
+.findrow{padding:6px 8px;border-bottom:1px solid #21262d;cursor:pointer;display:flex;gap:8px;align-items:baseline}
+.findrow:hover{background:var(--bg3)}
+.findrow .tc{font-family:var(--mono);font-size:11px;color:var(--fg2);min-width:86px}
+.findrow .wh{font-size:11px;min-width:92px;color:var(--acc)}
+.findrow .tx{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--line);
+  padding:8px 18px;border-radius:20px;opacity:0;transition:.25s;pointer-events:none;z-index:99}
+.toast.show{opacity:1}
+kbd{background:var(--bg3);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:11px;font-family:var(--mono)}
+dialog{background:var(--bg2);color:var(--fg);border:1px solid var(--line);border-radius:10px;max-width:640px;padding:20px}
+dialog::backdrop{background:#000a}
+</style>
+</head>
+<body>
+
+<header>
+  <b style="color:var(--acc)">声纹标注台</b>
+  <div class="sep"></div>
+  <button id="mRecruit" class="on">① 认人</button>
+  <button id="mProof">② 校对</button>
+  <div class="sep"></div>
+  <button id="btnPlay">▶ 播放</button>
+  <button id="btnPrev">⏮</button>
+  <button id="btnNext">⏭</button>
+  <span class="dim small">速度</span>
+  <button class="spd" data-s="0.75">0.75</button>
+  <button class="spd on" data-s="1">1</button>
+  <button class="spd" data-s="1.25">1.25</button>
+  <button class="spd" data-s="1.5">1.5</button>
+  <div class="sep"></div>
+  <span class="mono small dim" id="clock">--:-- / --:--</span>
+  <div class="spacer"></div>
+  <span class="small dim" id="prog">已认 0 / 0</span>
+  <button id="btnUndo" title="撤销 Ctrl+Z">↶ 撤销</button>
+  <button id="btnRedo" title="重做 Ctrl+Shift+Z">↷ 重做</button>
+  <button id="btnFind" title="查找 Ctrl+F">🔍 查找</button>
+  <button id="btnExport" title="多格式导出（TXT / SRT / VTT / CSV / RTTM / MD）Ctrl+E">导出…</button>
+  <button id="btnExportMd" title="一键导出真名版 Markdown">真名稿</button>
+  <button id="btnImport" title="导入 voices.json">导入标注</button>
+  <button id="btnImportRttm" title="导入 pyannote / diarize 等工具产出的 RTTM，用于对照">导入 RTTM</button>
+  <button id="btnHelp">?</button>
+</header>
+
+<main id="recruit" class="active">
+  <aside>
+    <div class="tools">
+      <button class="filt on" data-f="key" data-label="重点">重点</button>
+      <button class="filt" data-f="cross" data-label="跨录音">跨录音</button>
+      <button class="filt" data-f="A" data-label="A 级">A 级</button>
+      <button class="filt" data-f="undone" data-label="未认">未认</button>
+      <button class="filt" data-f="all" data-label="全部">全部</button>
+      <span class="small dim" id="libStat" style="margin-left:auto" title="声纹库 = 你已认的人算出的质心声纹；它会给还没认的组提建议名"></span>
+    </div>
+    <div id="glist"></div>
+  </aside>
+  <div class="stage">
+    <canvas id="waveMini"></canvas>
+    <canvas id="waveBig"></canvas>
+    <div class="card">
+      <h2><span id="cGid" class="mono">—</span><span id="cBadge"></span><span id="cStat" class="small dim"></span></h2>
+      <div id="cSug" class="sugline"></div>
+      <div class="rowline">
+        <div class="acwrap">
+          <input id="cName" class="namebox" autocomplete="off" spellcheck="false"
+                 placeholder="打中文或拼音都行：演 / yanshi / yshi">
+          <div class="ac" id="cAC"></div>
+        </div>
+        <button id="cReplay">重播本段 (R)</button>
+        <button id="cPrevClip">上一段 (←)</button>
+        <button id="cNextClip">下一段 (→)</button>
+        <button id="cSkip">跳过 (S)</button>
+        <button id="cDunno">分不出 (X)</button>
+        <button id="cLoop">循环本段 (L)</button>
+        <button id="cMerge" title="这一组其实是旁边那一组的人">⇄ 合并到…</button>
+      </div>
+      <div class="curseg">
+        <div class="who" id="sWho">—</div>
+        <div class="txt" id="sTxt">点右侧任一片段开始连播</div>
+        <div class="prev" id="sPrev"></div>
+        <div class="next" id="sNext"></div>
+      </div>
+    </div>
+    <div class="cliplist" id="clips"></div>
+  </div>
+</main>
+
+<main id="proof">
+  <aside>
+    <div class="tools">
+      <select id="pAudio" style="flex:1"></select>
+      <button id="pFilterAll" class="on">全部句</button>
+      <button id="pFilterUnknown">未定/低信</button>
+      <button id="pCmp" title="对照原生 MOSS 的说话人编号，看我们的分组改了什么">⇄ 对照</button>
+    </div>
+    <div id="slist"></div>
+  </aside>
+  <div class="stage">
+    <canvas id="waveMini2"></canvas>
+    <div class="card">
+      <div class="curseg" style="margin-top:0">
+        <div class="who" id="pWho">—</div>
+        <div class="txt" id="pTxt">从左侧点一句话开始</div>
+      </div>
+      <div class="editor">
+        <div class="small dim">把它改成（点击或按数字键；<kbd>0</kbd> = 无/未分派）</div>
+        <input id="pSearch" placeholder="搜索编号或姓名…" style="width:100%;margin-top:8px">
+        <div class="chips" id="pChips"></div>
+      </div>
+      <div class="rowline">
+        <button id="pCmpPanel" title="分组 × MOSS 编号 交叉统计">📊 对照分析</button>
+        <button id="pReplay">重播本句 (R)</button>
+        <button id="pPrev">上一句 (↑)</button>
+        <button id="pNext">下一句 (↓)</button>
+        <button id="pSplit" title="这句里其实有两个人">✂ 拆分本句</button>
+        <span class="spacer"></span>
+        <span class="small dim" id="pMod"></span>
+      </div>
+    </div>
+    <div class="cliplist" id="pList"></div>
+  </div>
+</main>
+
+<div class="toast" id="toastEl"></div>
+
+<dialog id="dlgExport">
+  <h3 style="margin-top:0">导出</h3>
+  <div class="rowline">
+    <span class="small dim">范围</span>
+    <select id="exScope"></select>
+    <span class="small dim">说话人写成</span>
+    <select id="exName">
+      <option value="real">真名（未认的回退成组号）</option>
+      <option value="group">组号 P###</option>
+    </select>
+  </div>
+  <div class="expfmt" id="exFmts"></div>
+  <div class="small dim" id="exHint"></div>
+  <pre id="exPrev"></pre>
+  <div style="text-align:right;margin-top:12px">
+    <button id="exPrevBtn">预览</button>
+    <button id="exGo" class="on">下载</button>
+    <button id="exClose">关闭 (Esc)</button>
+  </div>
+</dialog>
+
+<dialog id="dlgCmp">
+  <h3 style="margin-top:0">对照分析
+    <span class="small dim">我们的分组 vs 原生 MOSS 编号</span></h3>
+  <div id="cmpBody" style="max-height:60vh;overflow:auto"></div>
+  <div style="text-align:right;margin-top:12px"><button id="cmpClose">关闭 (Esc)</button></div>
+</dialog>
+
+<dialog id="dlgFind">
+  <h3 style="margin-top:0">查找 <span class="small dim">（文本 / 组号 / 姓名，Ctrl+F）</span></h3>
+  <input id="fq" placeholder="例：报名表 / P002 / 演示乙 / yanshi" style="width:100%">
+  <div id="fres" style="max-height:52vh;overflow-y:auto;margin-top:10px"></div>
+  <div style="text-align:right;margin-top:12px"><button id="fClose">关闭 (Esc)</button></div>
+</dialog>
+
+<dialog id="dlgMerge">
+  <h3 style="margin-top:0">把 <span id="mgFrom" class="mono"></span> 合并到…</h3>
+  <p class="small dim">适用于声纹把同一个人拆成了两组。合并后两组的发言都归到目标组名下。</p>
+  <input id="mq" placeholder="搜组号或姓名…" style="width:100%">
+  <div id="mres" class="chips" style="max-height:46vh"></div>
+  <div style="text-align:right;margin-top:12px"><button id="mClose">取消 (Esc)</button></div>
+</dialog>
+
+<dialog id="dlgSplit">
+  <h3 style="margin-top:0">拆分本句</h3>
+  <p class="small dim">这句里其实有两个人。拖动滑块选切点，右半会自动变成新的一段等你标人。</p>
+  <div class="mono small" id="spInfo" style="margin:8px 0"></div>
+  <input id="spAt" type="range" min="5" max="95" value="50" style="width:100%">
+  <div class="small" id="spPrev" style="margin:10px 0;color:var(--fg2)"></div>
+  <div style="text-align:right">
+    <button id="spCancel">取消</button>
+    <button id="spGo" class="on">拆分</button>
+  </div>
+</dialog>
+
+<dialog id="dlgHelp">
+  <h3 style="margin-top:0">怎么用</h3>
+  <p><b>① 认人模式</b>：左边是待认的声纹组。点一个（或直接按 <kbd>Enter</kbd> 跳姓名框），
+  页面会把<b>同一个声音在不同录音里的片段自动串起来连播</b>。听出来就在姓名框打字 → <kbd>Enter</kbd> 保存并自动跳下一组。</p>
+  <p><b>② 校对模式</b>：选一份录音，逐句过一遍。点句子播放，右边点编号（或按数字键）改说话人。
+  改了的地方会记在 <code>overrides</code> 里，导出时一并带走。</p>
+  <h4>快捷键</h4>
+  <p class="small">
+    <kbd>空格</kbd> 播放/暂停 &nbsp; <kbd>R</kbd> 重播本段 &nbsp; <kbd>←</kbd><kbd>→</kbd> 上/下一段<br>
+    <kbd>Enter</kbd> 跳到姓名框 / 保存并下一组 &nbsp; <kbd>S</kbd> 跳过 &nbsp; <kbd>X</kbd> 标记分不出<br>
+    <kbd>1</kbd>–<kbd>9</kbd> 校对模式快速选编号 &nbsp; <kbd>↑</kbd><kbd>↓</kbd> 上/下一句<br>
+    <kbd>L</kbd> 单段循环（听不清时反复听这一句）<br>
+    <kbd>Ctrl</kbd>+<kbd>Z</kbd> 撤销 &nbsp; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> 重做 &nbsp; <kbd>Ctrl</kbd>+<kbd>F</kbd> 查找<br>
+    <kbd>Tab</kbd> 采纳声纹库给的建议名 &nbsp; <kbd>Ctrl</kbd>+<kbd>E</kbd> 导出（多种格式）<br>
+    <kbd>Ctrl</kbd>+<kbd>S</kbd> 快速导出 voices.json
+  </p>
+  <h4>导出 / 导入</h4>
+  <p class="small"><b>导出…</b> 支持 TXT / SRT / VTT / CSV / <b>RTTM</b> / Markdown / voices.json，
+  可选单份录音或全部。<br>
+  <b>RTTM</b> 是声学界的通用交换格式（pyannote、diarize、Kaldi、NeMo 都读写它），
+  导出给别人能直接用；<b>导入 RTTM</b> 则可以把别人的结果拿来做对照。<br>
+  <b>⇄ 对照</b>（校对模式）：显示原生 MOSS 的说话人编号；黄色句表示「它被我们分到了别处」。
+  <b>📊 对照分析</b> 给出两套结果的交叉统计。</p>
+  <h4>保存</h4>
+  <p class="small">所有改动实时存在浏览器本地（localStorage）。<b>点「导出」下载 voices.json 才算落盘</b>。<br>
+  ⚠️ 直接双击本文件打开时（file://）无法自动写盘；用 <code>启动.bat</code> 起本地服务后即可自动保存。</p>
+  <div style="text-align:right"><button onclick="document.getElementById('dlgHelp').close()">知道了</button></div>
+</dialog>
+
+<script src="data.js"></script>
+<script>
+'use strict';
+const D = window.TAPE_DATA || {audios:[],segs:[],groups:{},waves:{},voices:{}};
+const LS_KEY = 'tape_workbench_v1';
+
+/* ══════════════════════════ state ══════════════════════════ */
+let loopOne = false;
+let S = {voices:{}, overrides:{}, dunno:{}, alias:{}, mode:'recruit',
+         gid:null, clips:[], qi:-1, aid:null, segIdx:-1, speed:1,
+         filt:'key', pAid:null, pOnlyUnknown:false, pIdx:-1};
+try{ Object.assign(S, JSON.parse(localStorage.getItem(LS_KEY)||'{}')); }catch(e){}
+S.mode='recruit'; S.gid=null; S.qi=-1;
+
+const CTX = 1.6;                  // context seconds before/after a clip
+const SEGS = D.segs;                 // working copy; splits are applied on top of it
+const segsByAudio = {}, segsByGroup = {};
+D.segs.forEach((s,i)=>{
+  (segsByAudio[s.a] = segsByAudio[s.a] || []).push(i);
+  if(s.g) (segsByGroup[s.g] = segsByGroup[s.g] || []).push(i);
+});
+const AUD = {}; D.audios.forEach(a=>AUD[a.id]=a);
+const GIDS = Object.keys(D.groups);
+
+/* confidence, recomputed here (mirrors _deliver.py) */
+function conf(g){
+  const cw = g['同录音一致性'] ?? g['组内一致性'] ?? 0, n = g['段数']||0, d = g['时长min']||0;
+  if(n>=5 && cw>=0.70 && d>=0.5) return 'A';
+  if(n>=3 && cw>=0.63 && d>=0.25) return 'B';
+  return 'C';
+}
+const CONF = {}; GIDS.forEach(g=>CONF[g]=conf(D.groups[g]));
+const RANK = {A:0,B:1,C:2};
+const nameOf = g => S.voices[S.alias[g] || g] || '';
+const isDone = g => !!nameOf(g) || !!S.dunno[S.alias[g] || g];
+
+function sortGids(a,b){
+  const ga=D.groups[a], gb=D.groups[b];
+  const da=isDone(a)?1:0, db=isDone(b)?1:0;
+  if(da!==db) return da-db;                                  // undone first
+  if(RANK[CONF[a]]!==RANK[CONF[b]]) return RANK[CONF[a]]-RANK[CONF[b]];
+  const ca=(ga['出现录音']||[]).length, cb=(gb['出现录音']||[]).length;
+  if(ca!==cb) return cb-ca;                                  // more cross-recording first
+  return (gb['时长min']||0)-(ga['时长min']||0);
+}
+function gidsFor(f){
+  let l = GIDS.filter(g=>segsByGroup[g] && segsByGroup[g].length);
+  if(f==='A') l=l.filter(g=>CONF[g]==='A');
+  else if(f==='AB') l=l.filter(g=>CONF[g]==='A'||CONF[g]==='B');
+  else if(f==='cross') l=l.filter(g=>(D.groups[g]['出现录音']||[]).length>=2);
+  else if(f==='undone') l=l.filter(g=>!isDone(g));
+  else if(f==='key') l=l.filter(g=>CONF[g]!=='C' || (D.groups[g]['时长min']||0)>=0.5);
+  return l.sort(sortGids);
+}
+const visibleGids = () => gidsFor(S.filt);
+function refreshFiltCounts(){
+  const keep = S.filt;
+  document.querySelectorAll('.filt').forEach(b=>{
+    const n = gidsFor(b.dataset.f).length;
+    b.textContent = b.dataset.label + ' ' + n;
+  });
+  S.filt = keep;
+}
+
+/* ══════════════════════════ audio ══════════════════════════ */
+let clipEnd = 0, playTimer = null;
+function el(aid){
+  if(!AUD[aid]) return null;
+  if(!A[aid]){
+    const a = new Audio(AUD[aid].file);
+    a.preload='auto'; a.playbackRate=S.speed;
+    a.addEventListener('ended', ()=>{ if(clipEnd>0) advance(); });
+    A[aid]=a;
+  }
+  return A[aid];
+}
+const A = {};
+function stopAll(except){ Object.keys(A).forEach(k=>{ if(k!==except && !A[k].paused) A[k].pause(); }); }
+function flush(){ if(playTimer){clearInterval(playTimer);playTimer=null;} }
+function tick(){
+  const a=A[S.aid]; if(!a) return;
+  updateClock(); drawMini();
+  if(clipEnd && a.currentTime>=clipEnd && !a.paused){ advance(); }
+}
+function playRange(aid, s, e, ctx){
+  const a = el(aid); if(!a) return;
+  stopAll(aid); flush();
+  S.aid = aid;
+  const c = ctx===undefined?CTX:ctx;
+  clipEnd = e + c;
+  a.playbackRate = S.speed;
+  a.currentTime = Math.max(0, s - c);
+  a.play().catch(err=>toast('播放失败：'+err.message));
+  if(!playTimer) playTimer = setInterval(tick, 80);
+}
+function advance(){
+  if(S.mode==='recruit'){
+    if(loopOne && S.qi>=0){ playClip(S.qi); return; }
+    if(S.qi>=0 && S.qi<S.clips.length-1){ playClip(S.qi+1); }
+    else { flush(); clipEnd=0; pauseAll(); toast('本组听完了 — 填个名字，或按 Enter'); focusName(); }
+  } else {
+    if(S.pIdx>=0 && S.pIdx<S.plist.length-1) playSeg(S.pIdx+1);
+    else { flush(); clipEnd=0; pauseAll(); }
+  }
+}
+function pauseAll(){ Object.keys(A).forEach(k=>A[k].pause()); flush(); clipEnd=0; btnPlay.textContent='▶ 播放'; }
+function updateClock(){
+  const a=A[S.aid]; const d = a? a.currentTime : 0;
+  const tot = S.mode==='recruit' ? (AUD[S.aid]?AUD[S.aid].dur:0) : (AUD[S.pAid]?AUD[S.pAid].dur:0);
+  clock.textContent = fmt(d)+' / '+fmt(tot);
+}
+const fmt = t=>{ t=Math.max(0,t|0); const h=(t/3600)|0,m=((t%3600)/60)|0,s=t%60;
+  return (h?h+':':'')+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); };
+
+/* ══════════════════════════ waveforms ══════════════════════ */
+const WAVE_WIN = 0.2;
+function drawWave(cv, aid, highlight, cur){
+  const c = cv.getContext('2d'), W = cv.width = cv.clientWidth*2, H = cv.height = cv.clientHeight*2;
+  cv.style.height = (H/2)+'px';
+  c.fillStyle='#010409'; c.fillRect(0,0,W,H);
+  const b64 = D.waves[aid];
+  if(!b64){ c.fillStyle='#30363d'; c.font='16px monospace'; c.fillText('无音频', 10, 30); return; }
+  const raw = atob(b64), N = raw.length;
+  const view = cv._view || [0, AUD[aid]?AUD[aid].dur:1];
+  const [t0,t1] = view, span = Math.max(0.5, t1-t0);
+  const i0 = Math.max(0, Math.floor(t0/WAVE_WIN)), i1 = Math.min(N, Math.ceil(t1/WAVE_WIN));
+  const mid = H*0.62;
+  c.fillStyle='#2a4d6e';
+  const total = i1-i0;
+  if(total>0){
+    const perPx = total/W;
+    const bw = Math.max(1, W/Math.ceil(W));
+    for(let p=0;p<W;p++){
+      const a0 = i0 + Math.floor(p*perPx), a1 = Math.min(i1, i0 + Math.floor((p+1)*perPx));
+      if(a1<=a0) continue;
+      let v=0; for(let i=a0;i<a1;i++){ const q=raw.charCodeAt(i); if(q>v) v=q; }
+      const h = Math.max(1,(v/255)*mid*0.92);
+      c.fillRect(p*bw, mid-h, bw, h);
+    }
+  }
+  if(highlight){
+    const [h0,h1]=highlight;
+    const x0=(h0-t0)/span*W, x1=(h1-t0)/span*W;
+    c.fillStyle='#f8514933'; c.fillRect(x0,0,Math.max(2,x1-x0),H);
+    c.strokeStyle='#f85149'; c.lineWidth=2; c.strokeRect(x0,1,Math.max(2,x1-x0),H-2);
+  }
+  if(cur!==undefined && cur>=t0 && cur<=t1){
+    const x=(cur-t0)/span*W;
+    c.strokeStyle='#e6edf3'; c.lineWidth=2; c.beginPath(); c.moveTo(x,0); c.lineTo(x,H); c.stroke();
+  }
+}
+function drawMini(){
+  const a=A[S.aid];
+  drawWave(waveMini, S.aid, null, a?a.currentTime:0);
+  drawWave(waveMini2, S.pAid, null, a&&S.aid===S.pAid?a.currentTime:0);
+}
+function reframe(cv, aid, center, half){
+  cv._view = [Math.max(0,center-half), center+half];
+}
+
+/* ══════════════════════════ recruit mode ══════════════════════════ */
+const SEG_MIN = 1.2;   // skip ultra-short clips when auto-queueing
+function buildClips(gid){
+  const idx = (segsByGroup[gid]||[]).slice();
+  // order by recording then time — natural listening order
+  const order = D.audios.map(a=>a.id);
+  idx.sort((i,j)=>{
+    const A_=D.segs[i], B_=D.segs[j];
+    const oa=order.indexOf(A_.a), ob=order.indexOf(B_.a);
+    return oa!==ob ? oa-ob : A_.s-B_.s;
+  });
+  let clips = idx.map(i=>({i, a:D.segs[i].a, s:D.segs[i].s, e:D.segs[i].e}));
+  // drop micro clips if we have enough material
+  const solid = clips.filter(c=>c.e-c.s>=SEG_MIN);
+  if(solid.length>=3) clips = solid;
+  return clips;
+}
+function renderGlist(){
+  const list = visibleGids();
+  glist.innerHTML = list.map(g=>{
+    const v=D.groups[g], nm=nameOf(g), done=isDone(g);
+    const tag = v['出现录音']&&v['出现录音'].length>=2 ? '★' : '';
+    const cls = 'gitem'+(g===S.gid?' cur':'')+(done?' done':'');
+    const sg = (!nm && !S.dunno[g]) ? sugOf(g) : null;
+    const sug = sg ? `<span class="sug${sg.c==='lo'?' lo':''}" title="声纹库建议：${esc(sg.n)}（${sg.s}）">`
+                     + `${sg.c==='hi'?'💡':'?'}${esc(sg.n.slice(0,4))}</span>` : '';
+    return `<div class="${cls}" data-g="${g}">
+      <span class="gid">${g}</span>
+      <span class="badge ${CONF[g]}">${CONF[g]}</span>
+      <span class="gname ${nm?'':'empty'}">${nm?esc(nm):(S.dunno[g]?'（分不出）':'—')}</span>
+      ${sug}
+      <span class="gmeta">${v['时长min']||0}m ${tag}</span></div>`;
+  }).join('');
+}
+function selectGroup(gid, autoplay){
+  S.gid = gid; S.qi = -1;
+  S.clips = buildClips(gid);
+  const v = D.groups[gid]||{};
+  cGid.textContent = gid;
+  cBadge.innerHTML = `<span class="badge ${CONF[gid]}">${CONF[gid]} 级</span>`;
+  cStat.textContent = `${v['段数']||0} 段 · ${v['时长min']||0} min · 跨 ${(v['出现录音']||[]).length} 份 · `
+    + `同录音一致性 ${v['同录音一致性']??'—'} · 跨录音 ${v['跨录音一致性']??'—'}`;
+  cName.value = nameOf(gid);
+  renderSug(gid);
+  clips.innerHTML = S.clips.map((c,k)=>{
+    const s = D.segs[c.i];
+    return `<div class="clip" data-k="${k}"><span class="tc">${c.a} ${fmt(c.s)}</span><span class="tx">${esc(s.t)}</span></div>`;
+  }).join('') || '<div class="pad dim">该组没有可用片段</div>';
+  renderGlist();
+  if(autoplay && S.clips.length) playClip(0); else { paintSeg(-1); }
+}
+const MAXCLIP = 15;   // seconds of a single clip actually played
+function playClip(k){
+  if(!S.clips.length) return;
+  S.qi = Math.max(0, Math.min(k, S.clips.length-1));
+  const c = S.clips[S.qi];
+  playRange(c.a, c.s, Math.min(c.e, c.s + MAXCLIP));
+  reframe(waveBig, c.a, (c.s+c.e)/2, 25);
+  paintSeg(S.qi);
+  btnPlay.textContent = '⏸ 暂停';
+}
+function paintSeg(k){
+  const clip = k>=0 ? S.clips[k] : null;
+  document.querySelectorAll('#clips .clip').forEach((el2,i)=>el2.classList.toggle('on', i===k));
+  if(!clip){ sWho.textContent='—'; sTxt.textContent='点右侧任一片段开始连播'; sPrev.textContent=''; sNext.textContent=''; return; }
+  const seg = D.segs[clip.i];
+  const arr = segsByAudio[clip.a]||[], at = arr.indexOf(clip.i);
+  sWho.textContent = `${clip.a}  ${fmt(clip.s)} → ${fmt(clip.e)}   片段 ${k+1}/${S.clips.length}`;
+  sTxt.textContent = seg.t;
+  sPrev.textContent = at>0 ? '↑ '+D.segs[arr[at-1]].t.slice(0,60) : '';
+  sNext.textContent = at>=0&&at<arr.length-1 ? '↓ '+D.segs[arr[at+1]].t.slice(0,60) : '';
+  const el2 = document.querySelector('#clips .clip.on'); if(el2) el2.scrollIntoView({block:'nearest'});
+}
+function saveName(){
+  const g = S.gid; if(!g) return;
+  const v = cName.value.trim();
+  if(v){ S.voices[g]=v; delete S.dunno[g]; }
+  else { delete S.voices[g]; }
+  pushUndo('命名 ' + g);
+  persist(); renderGlist(); updateProg();
+  const list = visibleGids(); const k = list.indexOf(g);
+  const next = list.slice(k+1).find(x=>!isDone(x)) || list.find(x=>!isDone(x));
+  if(next){ selectGroup(next, true); toast('已保存：'+g+' → '+v); }
+  else { toast('全部认完了 🎉'); }
+}
+function skipGroup(){
+  const list = visibleGids(); const k = list.indexOf(S.gid);
+  const next = list.slice(k+1).find(x=>!isDone(x)) || list.find(x=>!isDone(x));
+  if(next) selectGroup(next, true); else toast('没有更多未认的了');
+}
+function dunno(){
+  const g=S.gid; if(!g) return;
+  S.dunno[g] = !S.dunno[g];
+  if(S.dunno[g]) delete S.voices[g];
+  pushUndo('标记 ' + g);
+  cName.value = nameOf(g); persist(); renderGlist(); updateProg();
+  toast(S.dunno[g] ? '已标记「分不出」' : '已取消标记');
+}
+
+/* ══════════════════════════ proof mode ══════════════════════════ */
+let plist = [];
+function initProof(){
+  pAudio.innerHTML = '<option value="">（选一份录音）</option>' +
+    D.audios.filter(a=>a.n>0).map(a=>`<option value="${a.id}">${a.id} · ${esc(a.title).slice(0,34)}（${a.n} 句）</option>`).join('');
+}
+function selectProofAudio(aid){
+  S.pAid = aid; S.pIdx = -1;
+  if(!aid){ slist.innerHTML=''; plist=[]; return; }
+  let arr = (segsByAudio[aid]||[]).slice();
+  if(S.pOnlyUnknown) arr = arr.filter(i=>{
+    const g = effGroup(i); return !g || CONF[g]==='C' || !nameOf(g);
+  });
+  plist = arr;
+  mossMain = null;
+  slist.innerHTML = plist.map((i,k)=>{
+    const s=D.segs[i], g=effGroup(i), nm=g?nameOf(g):'';
+    const odd = iAmOdd(i) ? ' odd' : '';
+    const ms = S.cmpOn
+      ? '<span class="ms">' + (mossOf(i) ? 'M' + esc(mossOf(i)) : 'M–')
+        + (extSpk(i) ? ' X' + esc(extSpk(i).replace(/^(SPEAKER_|SPK_)/, '')) : '') + '</span>'
+      : '';
+    return `<div class="sitem${odd}" data-k="${k}">
+      <span class="who ${nm?'hasname':''}">${g||'—'}${nm?' '+esc(nm.slice(0,6)):''}</span>
+      <span class="txt">${esc(s.t)}</span>${ms}</div>`;
+  }).join('') || '<div class="pad dim">没有句子</div>';
+  pList.innerHTML = '';
+}
+let mossMain = null;    // cache: {aid, m:{mossId -> majority group}}
+function mossMajority(aid){
+  if(!mossMain || mossMain.aid !== aid){
+    const {byMoss} = cmpStats(aid), m = {};
+    for(const k in byMoss){
+      m[k] = Object.entries(byMoss[k]).sort((a,b)=>b[1]-a[1])[0][0];
+    }
+    mossMain = {aid, m};
+  }
+  return mossMain.m;
+}
+function iAmOdd(i){
+  if(!S.cmpOn) return false;
+  const m = mossOf(i); if(!m) return false;
+  return mossMajority(D.segs[i].a)[m] !== (effGroup(i) || '（未分派）');
+}
+const effGroup = i => S.overrides[keyOf(i)] || D.segs[i].g;
+const keyOf = i => D.segs[i].a+'|'+D.segs[i].s.toFixed(2);
+
+function playSeg(k){
+  if(!S.pAid || !plist.length) return;
+  S.pIdx = Math.max(0, Math.min(k, plist.length-1));
+  const i = plist[S.pIdx], s=D.segs[i];
+  playRange(s.a, s.s, s.e, 1.2);
+  reframe(waveMini2, s.a, (s.s+s.e)/2, 20);
+  paintSegProof(S.pIdx);
+  btnPlay.textContent='⏸ 暂停';
+}
+function paintSegProof(k){
+  document.querySelectorAll('#slist .sitem').forEach((e,i)=>e.classList.toggle('cur',i===k));
+  if(k<0 || k>=plist.length){ pWho.textContent='—'; pTxt.textContent='从左侧点一句话开始'; return; }
+  const i=plist[k], s=D.segs[i], g=effGroup(i), nm=g?nameOf(g):'';
+  const orig = D.segs[i].g;
+  pWho.textContent = `${s.a} ${fmt(s.s)} → ${fmt(s.e)}   第 ${k+1}/${plist.length} 句`
+    + (orig && orig!==g ? `   （原 ${orig} → 已改为 ${g||'空'}）` : `   原分组 ${orig||'未分派'}`)
+    + (S.cmpOn ? `   · MOSS Speaker ${s.m||'?'}` + (extSpk(i) ? ` · 外部 ${extSpk(i)}` : '') : '');
+  pTxt.textContent = s.t;
+  pMod.textContent = Object.keys(S.overrides).length ? `已修改 ${Object.keys(S.overrides).length} 句` : '';
+  renderChips(g);
+  const e2 = document.querySelector('#slist .sitem.cur'); if(e2) e2.scrollIntoView({block:'nearest'});
+}
+function candGroups(){
+  // groups seen in this recording, plus any named group
+  const mine = new Set();
+  (segsByAudio[S.pAid]||[]).forEach(i=>{ const g=effGroup(i); if(g) mine.add(g); });
+  const named = GIDS.filter(g=>nameOf(g));
+  const all = [...new Set([...mine, ...named])];
+  all.sort(sortGids);
+  return all;
+}
+function renderChips(cur){
+  const q = (pSearch.value||'').trim().toLowerCase();
+  let list = candGroups();
+  if(q) list = list.filter(g=>g.toLowerCase().includes(q) || nameOf(g).toLowerCase().includes(q));
+  list = list.slice(0,60);
+  pChips.innerHTML = `<span class="chip ${!cur?'on':''}" data-g="">（空/未分派）</span>`
+    + list.map((g,k)=>{
+      const nm=nameOf(g);
+      return `<span class="chip ${g===cur?'on':''}" data-g="${g}">${1+k<=9?'<b>'+(k+1)+'</b> ':''}${g}${nm?' '+esc(nm.slice(0,8)):''}</span>`;
+    }).join('');
+  pChips._quick = list;
+}
+function setGroup(g){
+  if(S.pIdx<0) return;
+  const i = plist[S.pIdx], k = keyOf(i);
+  if((D.segs[i].g||'') === (g||'')) delete S.overrides[k]; else S.overrides[k]=g;
+  pushUndo('改句');
+  persist(); paintSegProof(S.pIdx);
+  const row = document.querySelectorAll('#slist .sitem')[S.pIdx];
+  if(row){ const nm=g?nameOf(g):''; row.querySelector('.who').textContent=(g||'—')+(nm?' '+nm.slice(0,6):'');
+    row.querySelector('.who').className='who '+(nm?'hasname':''); }
+  // auto-advance
+  if(g && S.pIdx<plist.length-1) setTimeout(()=>playSeg(S.pIdx+1), 350);
+}
+
+/* ══════════════════════════ persistence ══════════════════════════ */
+function persist(){
+  const blob = {voices:S.voices, overrides:S.overrides, dunno:S.dunno, alias:S.alias};
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(blob)); }catch(e){}
+  if(location.protocol==='http:'){
+    fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(blob)}).catch(()=>{});
+  }
+  updateProg(); refreshFiltCounts(); refreshNameList(); renderLib();
+}
+function updateProg(){
+  const key = visibleGids().filter(g=>CONF[g]!=='C' || (D.groups[g]['时长min']||0)>=0.5);
+  const done = key.filter(isDone).length;
+  prog.textContent = `已认 ${done} / ${key.length}` + (Object.keys(S.overrides).length?` · 改句 ${Object.keys(S.overrides).length}`:'');
+}
+const PEOPLE = (D.people || []).slice();
+const acListRef = {};
+function refreshNameList(){
+  // names you already used but that are not in the library → surface them too
+  // (appended at the END + tagged tmp, so they never shadow the curated library)
+  const have = new Set(PEOPLE.map(p=>p.n));
+  for(const g of Object.keys(S.voices)){
+    const nm = S.voices[g];
+    if(!nm || have.has(nm)) continue;
+    have.add(nm);
+    PEOPLE.push({n: nm, t: ['你认过'], pri: 300, s: '', tmp: true});
+  }
+}
+function download(name, text, mime){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type: mime||'text/plain;charset=utf-8'}));
+  a.download = name; a.click();
+}
+function exportNamed(){
+  const L = ['# 声纹标注稿（已认人版）', '',
+             '> 生成时间 ' + new Date().toLocaleString() + '　｜　已认 ' +
+             Object.keys(S.voices).filter(g=>S.voices[g]).length + ' 组',
+             '> 格式：**时间**　说话人　内容', ''];
+  let n = 0;
+  for(const a of D.audios){
+    if(!a.n) continue;
+    L.push('## ' + a.id + ' · ' + a.title, '');
+    for(const i of (segsByAudio[a.id]||[])){
+      const s = D.segs[i], g = effGroup(i), nm = g ? (S.voices[g]||'') : '';
+      L.push('**' + fmt(s.s) + '**　' + (nm || g || '未分派') + '　' + s.t);
+      n++;
+    }
+    L.push('');
+  }
+  download('声纹标注稿_真名版.md', L.join('\n'));
+  toast('已导出真名稿（' + n + ' 句）');
+}
+function exportJSON(){
+  const blob = {voices:S.voices, overrides:S.overrides, dunno:S.dunno, alias:S.alias,
+                exported: new Date().toISOString().slice(0,16)};
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(blob,null,1)],{type:'application/json'}));
+  a.download = 'voices.json'; a.click();
+  toast('已下载 voices.json（放到 声纹标注台\\ 目录下即可被下次同步读到）');
+}
+function importJSON(file){
+  const r = new FileReader();
+  r.onload = ()=>{ try{
+      const o = JSON.parse(r.result);
+      if(o.voices) S.voices = Object.assign(S.voices, o.voices);
+      else if(typeof o==='object') S.voices = Object.assign(S.voices, o);
+      if(o.overrides) S.overrides = Object.assign(S.overrides, o.overrides);
+      if(o.dunno) S.dunno = Object.assign(S.dunno, o.dunno);
+      if(o.alias) S.alias = Object.assign(S.alias, o.alias);
+      persist(); renderGlist(); updateProg(); toast('导入成功');
+    }catch(e){ toast('导入失败：'+e.message); } };
+  r.readAsText(file);
+}
+
+/* ══════════════════════════ misc ══════════════════════════ */
+const esc = s => String(s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let toastT;
+function toast(m){ const t=document.getElementById('toastEl'); t.textContent=m; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
+function focusName(){ cName.focus(); cName.select(); }
+function setMode(m){
+  S.mode = m;
+  document.getElementById('recruit').classList.toggle('active', m==='recruit');
+  document.getElementById('proof').classList.toggle('active', m==='proof');
+  mRecruit.classList.toggle('on', m==='recruit');
+  mProof.classList.toggle('on', m==='proof');
+  if(m==='recruit') drawMini(); else { if(!S.pAid){ const f=D.audios.find(a=>a.n>0); if(f) selectProofAudio(f.id); } drawMini(); }
+}
+
+
+/* ══════════════ export: multi-format ══════════════
+   Formats chosen after surveying the field (GECKO, audino, whisper-diarization-app,
+   Subtitle Edit): RTTM is THE interchange format for the diarization ecosystem
+   (pyannote / diarize / Kaldi / NeMo all read & write it), subtitles cover the
+   video use case, CSV covers spreadsheets. */
+function spkName(i, mode){
+  const g = effGroup(i);
+  if(!g) return '未分派';
+  if(mode === 'group') return g;
+  return nameOf(g) || g;
+}
+function rowsFor(scope){
+  const out = [];
+  for(const a of D.audios){
+    if(!a.n || (scope && a.id !== scope)) continue;
+    for(const i of (segsByAudio[a.id] || [])) out.push(i);
+  }
+  return out;
+}
+const p2 = (n, w) => String(n).padStart(w, '0');
+function tcComma(t, forceMs){
+  t = Math.max(0, t||0);
+  const h = Math.floor(t/3600), m = Math.floor((t%3600)/60), s = Math.floor(t%60);
+  const ms = Math.round((t - Math.floor(t))*1000);
+  return p2(h,2)+':'+p2(m,2)+':'+p2(s,2)+(forceMs?',':'.')+p2(ms,3);
+}
+function rttmSafe(x){ return String(x||'').replace(/[\s]+/g, '-'); }
+const stamp = () => new Date().toISOString().slice(0,10).replace(/-/g,'');
+
+const FMT = {
+  txt: { label:'TXT 纯文本', ext:'txt', note:'[时间] 说话人：内容，最通用',
+    fn: (scope, mode) => {
+      const L = []; let cur = null;
+      for(const i of rowsFor(scope)){
+        const s = D.segs[i];
+        if(s.a !== cur){ cur = s.a; L.push('', '===== ' + cur + ' =====', ''); }
+        L.push('[' + fmt(s.s) + '] ' + spkName(i, mode) + '：' + s.t);
+      }
+      return L.join('\n').trim() + '\n';
+    }},
+  srt: { label:'SRT 字幕', ext:'srt', note:'标准字幕，可直接喂给播放器/剪辑软件',
+    fn: (scope, mode) => {
+      let n = 0, L = [];
+      for(const i of rowsFor(scope)){
+        const s = D.segs[i];
+        L.push(++n, tcComma(s.s, true) + ' --> ' + tcComma(s.e, true),
+               spkName(i, mode) + '：' + s.t, '');
+      }
+      return L.join('\n');
+    }},
+  vtt: { label:'VTT 字幕', ext:'vtt', note:'WebVTT，说话人用 <v 名字> 标记，网页播放器认',
+    fn: (scope, mode) => {
+      let L = ['WEBVTT', ''];
+      for(const i of rowsFor(scope)){
+        const s = D.segs[i], nm = spkName(i, mode);
+        L.push(tcComma(s.s) + ' --> ' + tcComma(s.e),
+               (nm === '未分派' ? s.t : '<v ' + nm + '>' + s.t), '');
+      }
+      return L.join('\n');
+    }},
+  csv: { label:'CSV 表格', ext:'csv', note:'Excel 可直接打开（已加 BOM 防乱码）',
+    fn: (scope, mode) => {
+      const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+      const L = ['录音,开始秒,结束秒,时长秒,说话人,组号,内容'];
+      for(const i of rowsFor(scope)){
+        const s = D.segs[i], g = effGroup(i) || '';
+        L.push([s.a, s.s, s.e, +(s.e-s.s).toFixed(2), q(spkName(i, mode)), g, q(s.t)].join(','));
+      }
+      return '\ufeff' + L.join('\r\n') + '\r\n';
+    }},
+  rttm: { label:'RTTM 通用交换格式', ext:'rttm', note:'pyannote / diarize / Kaldi / NeMo 都认的格式',
+    fn: (scope, mode) => {
+      const L = [];
+      for(const i of rowsFor(scope)){
+        const s = D.segs[i];
+        L.push(['SPEAKER', rttmSafe(s.a), '1', s.s.toFixed(3),
+                (s.e - s.s).toFixed(3), '<NA>', '<NA>',
+                rttmSafe(spkName(i, mode)), '<NA>', '<NA>'].join(' '));
+      }
+      return L.join('\n') + '\n';
+    }},
+  md: { label:'Markdown 表格', ext:'md', note:'带时间戳的表格，贴进笔记/文档友好',
+    fn: (scope, mode) => {
+      const L = ['# 声纹标注', '',
+                 '> 范围：' + (scope ? scope : '全部录音') + '　｜　生成 ' + new Date().toLocaleString(),
+                 '', '| 录音 | 时间 | 说话人 | 内容 |', '|---|---|---|---|'];
+      for(const i of rowsFor(scope)){
+        const s = D.segs[i];
+        L.push('| ' + s.a + ' | ' + fmt(s.s) + ' | ' + spkName(i, mode) + ' | '
+               + String(s.t).replace(/\|/g, '\\|') + ' |');
+      }
+      return L.join('\n') + '\n';
+    }},
+  json: { label:'voices.json（标注数据）', ext:'json', note:'回填用：放到本目录，下次同步自动读',
+    fn: () => JSON.stringify({voices:S.voices, overrides:S.overrides,
+                              dunno:S.dunno, alias:S.alias,
+                              exported:new Date().toISOString().slice(0,16)}, null, 1)
+  },
+};
+
+let exFmt = 'txt';
+function openExport(){
+  exScope.innerHTML = '<option value="">全部录音</option>'
+    + D.audios.filter(a => a.n > 0)
+        .map(a => '<option value="' + a.id + '">' + a.id + ' · ' + esc(a.title).slice(0,26)
+                  + '（' + a.n + ' 句）</option>').join('');
+  exFmts.innerHTML = Object.keys(FMT)
+    .map(k => '<span class="chip" data-f="' + k + '">' + esc(FMT[k].label) + '</span>').join('');
+  exFmt = 'txt';
+  exFmts.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.f === exFmt));
+  exHint.textContent = FMT[exFmt].note;
+  exPrev.textContent = previewExport();
+  dlgExport.showModal();
+}
+function exportText(){
+  return FMT[exFmt].fn(exScope.value || '', exName.value || 'real');
+}
+function previewExport(){
+  const t = exportText();
+  const lines = t.split('\n');
+  return lines.slice(0, 26).join('\n') + (lines.length > 26 ? '\n…（共 ' + lines.length + ' 行）' : '');
+}
+function doExport(){
+  const scope = exScope.value || '';
+  const nm = '声纹标注_' + (scope || '全部') + '_' + stamp() + '.' + FMT[exFmt].ext;
+  const mime = exFmt === 'csv' ? 'text/csv;charset=utf-8'
+             : exFmt === 'json' ? 'application/json'
+             : 'text/plain;charset=utf-8';
+  download(nm, exportText(), mime);
+  toast('已导出 ' + nm + '（' + rowsFor(scope).length + ' 句）');
+}
+
+/* ══════════════ RTTM import + comparison mode ══════════════
+   Lets you drop in another tool's output (pyannote / diarize / pyannote-audio)
+   and see where it disagrees with our cross-recording grouping. */
+function parseRttm(text){
+  const ext = {}, seen = new Set(), unknown = new Set();
+  for(const raw of String(text).split(/\r?\n/)){
+    const line = raw.trim();
+    if(!line || line.startsWith(';;')) continue;
+    const p = line.split(/\s+/);
+    if(p[0] !== 'SPEAKER' || p.length < 9) continue;
+    const tag = p[1], start = +p[3], dur = +p[4], spk = p[7];
+    if(!AUD[tag]){ unknown.add(tag); continue; }
+    seen.add(spk);
+    (ext[tag] = ext[tag] || []).push({s:start, e:start+dur, spk});
+  }
+  for(const k in ext) ext[k].sort((a,b)=>a.s-b.s);
+  return {ext, speakers: seen.size, unknown: [...unknown]};
+}
+let extOfSeg = null;                      // lazy index: seg idx -> external speaker id
+function buildExtIndex(){
+  extOfSeg = new Array(SEGS.length).fill('');
+  if(!S.ext) return;
+  for(let i = 0; i < SEGS.length; i++){
+    const s = SEGS[i], arr = S.ext[s.a];
+    if(!arr || !arr.length) continue;
+    let best = '', bo = 0;
+    for(const r of arr){
+      const ov = Math.min(s.e, r.e) - Math.max(s.s, r.s);
+      if(ov > bo){ bo = ov; best = r.spk; }
+    }
+    extOfSeg[i] = best;
+  }
+}
+const mossOf  = i => D.segs[i].m || '';
+const extSpk  = i => (extOfSeg && extOfSeg[i]) || '';
+
+function importRttm(file){
+  const r = new FileReader();
+  r.onload = () => {
+    const {ext, speakers, unknown} = parseRttm(r.result);
+    const nTags = Object.keys(ext).length;
+    if(!nTags){ toast('没读到可用的 RTTM 行（第 1 列必须是 SPEAKER，第 2 列是录音号）'); return; }
+    S.ext = ext; extOfSeg = null; buildExtIndex();
+    let msg = '已载入 RTTM：' + speakers + ' 个说话人 · ' + nTags + ' 份录音';
+    if(unknown.length) msg += '　（' + unknown.length + ' 份对不上，如 ' + unknown[0] + '）';
+    toast(msg);
+    S.cmpOn = true; pCmp.classList.add('on');
+    if(S.pAid) selectProofAudio(S.pAid);
+    openCmpPanel();
+  };
+  r.readAsText(file, 'utf-8');
+}
+
+/* ── comparison: our groups vs raw MOSS speaker ids ── */
+function cmpStats(aid){
+  const byMoss = {}, byGrp = {};
+  for(const i of (segsByAudio[aid] || [])){
+    const m = mossOf(i), g = effGroup(i) || '（未分派）';
+    (byMoss[m] = byMoss[m] || {})[g] = (byMoss[m][g] || 0) + 1;
+    (byGrp[g] = byGrp[g] || {})[m] = (byGrp[g][m] || 0) + 1;
+  }
+  return {byMoss, byGrp};
+}
+function renderCmpPanel(){
+  const aid = S.pAid;
+  if(!aid){ cmpBody.innerHTML = '<p class="dim">先在校对模式里选一份录音</p>'; return; }
+  const {byMoss, byGrp} = cmpStats(aid);
+  const sum = o => Object.values(o).reduce((a,b)=>a+b, 0);
+  const L = [];
+  L.push('<h4 style="margin:14px 0 6px">① 原生 MOSS 编号 → 我们拆成了几组</h4>');
+  L.push('<p class="small dim">一个 MOSS 编号被拆成多组 = 它那把一个人合进了同一个编号（或反之）。'
+       + '这是我们两阶段聚类要修的问题。</p>');
+  L.push('<table class="cmptbl"><tr><th>MOSS</th><th>句数</th><th>拆成</th><th>分布</th></tr>');
+  Object.keys(byMoss).sort((a,b)=>sum(byMoss[b])-sum(byMoss[a])).slice(0,14).forEach(m => {
+    const d = byMoss[m], k = Object.keys(d).length;
+    const top = Object.entries(d).sort((a,b)=>b[1]-a[1]).slice(0,4)
+      .map(([g,n]) => g.replace(/^P/, 'P').slice(0,7) + '×' + n).join(' ');
+    L.push('<tr><td class="mono">Speaker ' + esc(m) + '</td><td>' + sum(d) + '</td><td'
+      + (k > 1 ? ' style="color:var(--warn)"' : '') + '>' + k + '</td>'
+      + '<td class="dim">' + esc(top) + '</td></tr>');
+  });
+  L.push('</table>');
+
+  L.push('<h4 style="margin:16px 0 6px">② 我们的分组 → 对应几个原生 MOSS 编号</h4>');
+  L.push('<p class="small dim">一个组横跨多个 MOSS 编号 = MOSS 把同一个人的标签切碎了'
+       + '（diarize 作者承认的 "label hopping"）。</p>');
+  L.push('<table class="cmptbl"><tr><th>组</th><th>说话人</th><th>句数</th><th>MOSS 编号分布</th></tr>');
+  Object.keys(byGrp).sort((a,b)=>sum(byGrp[b])-sum(byGrp[a])).slice(0,16).forEach(g => {
+    const d = byGrp[g], k = Object.keys(d).length;
+    const nm = (g !== '（未分派）' && nameOf(g)) || '';
+    const top = Object.entries(d).sort((a,b)=>b[1]-a[1]).slice(0,6)
+      .map(([m,n]) => 'S' + m + '×' + n).join(' ');
+    L.push('<tr><td class="mono">' + esc(g) + '</td><td>' + esc(nm || '—') + '</td><td>' + sum(d)
+      + '</td><td class="dim"' + (k > 1 ? ' style="color:var(--warn)"' : '') + '>' + esc(top)
+      + '　<span class="dim">（' + k + ' 个）</span></td></tr>');
+  });
+  L.push('</table>');
+
+  if(S.ext){
+    const n = extOfSeg ? extOfSeg.filter(x=>x).length : 0;
+    L.push('<h4 style="margin:16px 0 6px">③ 外部 RTTM 对照</h4>');
+    L.push('<p class="small">已载入外部结果，匹配上 <b>' + n + '</b> 句。校对模式每句右侧会同时显示'
+         + ' <span class="mono">M#</span>（MOSS）与 <span class="mono">X#</span>（外部）。</p>');
+  }
+  cmpBody.innerHTML = L.join('');
+  dlgCmp.showModal();
+}
+
+/* ══════════════ suggestion (online enrollment) ══════════════ */
+const sugOf = g => (g && D.groups[g] && D.groups[g].suggest) || null;
+function renderLib(){
+  const ppl = Object.keys(D.speakers || {}).length;
+  const sg  = GIDS.filter(g => sugOf(g) && !isDone(g)).length;
+  libStat.textContent = ppl
+    ? '声纹库 ' + ppl + ' 人 · 建议 ' + sg + ' 个'
+    : '声纹库空 — 认几个人后自动建库';
+}
+function renderSug(gid){
+  cSug.innerHTML = '';
+  const sg = sugOf(gid);
+  if(!sg || isDone(gid)) return;
+  const sp = document.createElement('span');
+  sp.className = 'sug' + (sg.c === 'lo' ? ' lo' : '');
+  sp.innerHTML = (sg.c === 'hi' ? '💡 建议：' : '? 可能：') + esc(sg.n)
+    + ' <span class="dim">' + sg.s.toFixed(2) + (sg.same ? ' 同一场' : ' 跨录音') + '</span>'
+    + ' <span class="dim">· Tab 采纳</span>';
+  sp.onclick = () => adoptSug(gid);
+  cSug.appendChild(sp);
+}
+function adoptSug(gid){
+  gid = gid || S.gid;
+  const sg = sugOf(gid); if(!sg) return;
+  const hit = PEOPLE.find(x => x.n === sg.n && !x.tmp);   // curated entries only
+  const val = hit ? [hit.n].concat(hit.t || []).join('_') : sg.n;
+  S.voices[gid] = val; delete S.dunno[gid];
+  pushUndo('采纳建议 ' + gid);
+  persist(); renderGlist(); updateProg();
+  if(S.gid === gid){ cName.value = val; renderSug(gid);
+    const list = visibleGids(), k = list.indexOf(gid);
+    const nx = list.slice(k+1).find(x=>!isDone(x)) || list.find(x=>!isDone(x));
+    if(nx) selectGroup(nx, true);
+  }
+  toast('已采纳建议：' + val);
+}
+
+/* ══════════════════════════ events ══════════════════════════ */
+mRecruit.onclick = ()=>setMode('recruit');
+mProof.onclick   = ()=>setMode('proof');
+btnPlay.onclick  = ()=>{
+  const a = A[S.aid];
+  if(a && !a.paused){ a.pause(); btnPlay.textContent='▶ 播放'; }
+  else if(a){ a.play(); btnPlay.textContent='⏸ 暂停'; }
+  else if(S.mode==='recruit'){ if(!S.gid){ const f=visibleGids()[0]; if(f) selectGroup(f,true);} else playClip(0); }
+  else { if(S.pIdx<0 && plist.length) playSeg(0); }
+};
+btnPrev.onclick = ()=>{ if(S.mode==='recruit'){ S.qi>0?playClip(S.qi-1):playClip(0);} else { if(S.pIdx>0) playSeg(S.pIdx-1);} };
+btnNext.onclick = ()=>{ if(S.mode==='recruit') playClip(S.qi+1); else playSeg(S.pIdx+1); };
+document.querySelectorAll('.spd').forEach(b=>b.onclick=()=>{
+  S.speed = parseFloat(b.dataset.s);
+  document.querySelectorAll('.spd').forEach(x=>x.classList.toggle('on',x===b));
+  Object.keys(A).forEach(k=>A[k].playbackRate=S.speed);
+});
+document.querySelectorAll('.filt').forEach(b=>b.onclick=()=>{
+  S.filt = b.dataset.f;
+  document.querySelectorAll('.filt').forEach(x=>x.classList.toggle('on',x===b));
+  renderGlist(); updateProg();
+});
+btnUndo.onclick = undo;
+btnRedo.onclick = redo;
+btnFind.onclick = ()=>{ dlgFind.showModal(); fq.value=''; renderFind(''); fq.focus(); };
+fq.oninput = ()=>renderFind(fq.value);
+fClose.onclick = ()=>dlgFind.close();
+fres.onclick = e=>{ const r=e.target.closest('.findrow'); if(r) gotoFind(r); };
+cMerge.onclick = openMerge;
+mq.oninput = ()=>renderMerge(mq.value);
+mClose.onclick = ()=>dlgMerge.close();
+mres.onclick = e=>{ const c=e.target.closest('.chip'); if(c) mergeInto(c.dataset.g); };
+btnExport.onclick = openExport;
+btnImportRttm.onclick = ()=>{ const i=document.createElement('input'); i.type='file'; i.accept='.rttm,.txt';
+  i.onchange=()=>i.files[0]&&importRttm(i.files[0]); i.click(); };
+exFmts.onclick = e=>{ const c=e.target.closest('.chip'); if(!c) return;
+  exFmt = c.dataset.f;
+  exFmts.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on', x===c));
+  exHint.textContent = FMT[exFmt].note; exPrev.textContent = previewExport(); };
+exGo.onclick = doExport;
+exPrevBtn.onclick = ()=>{ exPrev.textContent = previewExport(); };
+exClose.onclick = ()=>dlgExport.close();
+exScope.onchange = ()=>{ exPrev.textContent = previewExport(); };
+exName.onchange  = ()=>{ exPrev.textContent = previewExport(); };
+pCmp.onclick = ()=>{ S.cmpOn = !S.cmpOn; pCmp.classList.toggle('on', S.cmpOn);
+  if(S.pAid) selectProofAudio(S.pAid);
+  toast(S.cmpOn ? '对照：显示原生 MOSS 编号（黄色句 = 它被我们分到了别处）' : '对照：关'); };
+pCmpPanel.onclick = renderCmpPanel;
+cmpClose.onclick = ()=>dlgCmp.close();
+btnExportMd.onclick = exportNamed;
+cLoop.onclick = ()=>{ loopOne = !loopOne; cLoop.classList.toggle('on', loopOne);
+  toast(loopOne ? '单段循环：开' : '单段循环：关'); };
+btnImport.onclick = ()=>{ const i=document.createElement('input'); i.type='file'; i.accept='.json';
+  i.onchange=()=>i.files[0]&&importJSON(i.files[0]); i.click(); };
+btnHelp.onclick = ()=>document.getElementById('dlgHelp').showModal();
+
+glist.onclick = e=>{ const el2=e.target.closest('.gitem'); if(el2) selectGroup(el2.dataset.g, true); };
+clips.onclick = e=>{ const el2=e.target.closest('.clip'); if(el2) playClip(+el2.dataset.k); };
+/* ══════════════ undo / redo ══════════════ */
+const UNDO = {stack:[], idx:-1, labels:[], max:150};
+function snap(){ return JSON.stringify({v:S.voices, o:S.overrides, d:S.dunno, a:S.alias}); }
+// NOTE: call this AFTER mutating state — it records the post-change snapshot,
+// so undo() steps back to the snapshot taken before this change.
+function pushUndo(label){
+  const cur = snap();
+  if(UNDO.idx >= 0 && UNDO.stack[UNDO.idx] === cur) return;   // nothing changed
+  UNDO.stack.length = UNDO.idx + 1;
+  UNDO.labels.length = UNDO.idx + 1;
+  UNDO.stack.push(cur);
+  UNDO.labels.push(label || '');
+  if(UNDO.stack.length > UNDO.max){ UNDO.stack.shift(); UNDO.labels.shift(); }
+  UNDO.idx = UNDO.stack.length - 1;
+}
+function applySnap(t){
+  const o = JSON.parse(t);
+  S.voices = o.v || {}; S.overrides = o.o || {}; S.dunno = o.d || {}; S.alias = o.a || {};
+  persist(); renderGlist(); updateProg(); refreshNameList();
+  if(S.mode === 'recruit' && S.gid) cName.value = nameOf(S.gid);
+  if(S.mode === 'proof' && S.pAid){ const keep = S.pIdx; selectProofAudio(S.pAid); paintSegProof(keep); }
+}
+function undo(){
+  if(UNDO.idx <= 0){ toast('已经到最早了'); return; }
+  const lbl = UNDO.labels[UNDO.idx];
+  UNDO.idx--; applySnap(UNDO.stack[UNDO.idx]);
+  toast('↶ 撤销：' + (lbl || '上一步'));
+}
+function redo(){
+  if(UNDO.idx >= UNDO.stack.length - 1){ toast('没有可重做的'); return; }
+  UNDO.idx++; applySnap(UNDO.stack[UNDO.idx]);
+  toast('↷ 重做：' + (UNDO.labels[UNDO.idx] || ''));
+}
+function resetUndo(){ UNDO.stack = [snap()]; UNDO.labels = ['初始']; UNDO.idx = 0; }
+
+/* ══════════════ merge a group into another ══════════════ */
+function mergeInto(target){
+  const g = S.gid;
+  if(!g || !target || target === g) return;
+  if(!S.voices[target] && S.voices[g]) S.voices[target] = S.voices[g];   // carry the name over
+  S.alias[g] = target;
+  delete S.voices[g];
+  pushUndo('合并 ' + g + ' → ' + target);
+  persist(); renderGlist(); updateProg();
+  toast(g + ' 已并入 ' + target + (nameOf(target) ? '（' + nameOf(target) + '）' : ''));
+  dlgMerge.close();
+}
+function openMerge(){
+  if(!S.gid) return;
+  mgFrom.textContent = S.gid + (nameOf(S.gid) ? '（' + nameOf(S.gid) + '）' : '');
+  mq.value = ''; renderMerge('');
+  dlgMerge.showModal(); mq.focus();
+}
+function renderMerge(q){
+  q = (q || '').trim().toLowerCase();
+  let list = GIDS.filter(g => g !== S.gid);
+  if(q) list = list.filter(g => g.toLowerCase().includes(q) || nameOf(g).toLowerCase().includes(q));
+  // already-named groups first: merging almost always targets a person you've identified
+  list.sort((a, b) => {
+    const na = nameOf(a) ? 0 : 1, nb = nameOf(b) ? 0 : 1;
+    return na !== nb ? na - nb : sortGids(a, b);
+  });
+  mres.innerHTML = list.slice(0, 40).map(g => {
+    const nm = nameOf(g), v = D.groups[g] || {};
+    return '<span class="chip" data-g="' + g + '">' + g
+      + (nm ? ' ' + esc(nm.slice(0, 18)) : ' <i class="dim">未认</i>')
+      + ' <span class="dim">' + (v['时长min'] || 0) + 'm</span></span>';
+  }).join('') || '<span class="dim small">没有匹配的组</span>';
+}
+
+/* ══════════════ find (text / group / name) ══════════════ */
+function renderFind(q){
+  q = (q || '').trim().toLowerCase();
+  if(!q){ fres.innerHTML = '<div class="dim small" style="padding:8px">输入关键词开始查找</div>'; return; }
+  const rows = [];
+  for(const g of GIDS){
+    const nm = nameOf(g);
+    if(g.toLowerCase().includes(q) || (nm && nm.toLowerCase().includes(q))){
+      const v = D.groups[g] || {};
+      rows.push('<div class="findrow" data-kind="g" data-g="' + g + '">'
+        + '<span class="tc">' + g + '</span>'
+        + '<span class="wh">' + (nm ? esc(nm.slice(0, 14)) : '<i class="dim">未认</i>') + '</span>'
+        + '<span class="tx dim">' + (v['段数'] || 0) + ' 段 · ' + (v['时长min'] || 0) + ' min · 跨 '
+        + (v['出现录音'] || []).length + ' 份</span></div>');
+      if(rows.length >= 25) break;
+    }
+  }
+  let n = 0;
+  for(let i = 0; i < SEGS.length && n < 80; i++){
+    const s = SEGS[i];
+    if(s.t && s.t.toLowerCase().includes(q)){
+      const g = effGroup(i);
+      rows.push('<div class="findrow" data-kind="s" data-i="' + i + '">'
+        + '<span class="tc">' + s.a + ' ' + fmt(s.s) + '</span>'
+        + '<span class="wh">' + (g ? esc((nameOf(g) || g).slice(0, 12)) : '<i class="dim">—</i>') + '</span>'
+        + '<span class="tx">' + esc(s.t.slice(0, 70)) + '</span></div>');
+      n++;
+    }
+  }
+  fres.innerHTML = rows.join('') || '<div class="dim small" style="padding:8px">没有找到</div>';
+}
+function gotoFind(el){
+  if(el.dataset.kind === 'g'){
+    setMode('recruit');
+    if(el.dataset.g !== S.gid) selectGroup(el.dataset.g, false);
+    dlgFind.close();
+  } else {
+    const i = +el.dataset.i, s = SEGS[i];
+    setMode('proof');
+    if(pAudio.value !== s.a){ pAudio.value = s.a; selectProofAudio(s.a); }
+    const k = plist.indexOf(i);
+    if(k >= 0) playSeg(k); else toast('该句不在当前筛选里');
+    dlgFind.close();
+  }
+}
+
+let acList = [], acIdx = -1;
+function matchPeople(q){
+  q = (q||'').trim().toLowerCase();
+  if(!q) return PEOPLE.slice(0, 14);
+  const hits = [];
+  for(const p of PEOPLE){
+    let sc = 0;
+    const n = (p.n||'').toLowerCase();
+    if(n === q) sc = 120;
+    else if(n.startsWith(q)) sc = 100;
+    else if(n.includes(q)) sc = 88;
+    else if((p.s||'').includes(q)) sc = 72;                       // 拼音（全拼/首字母）
+    else if((p.t||[]).some(t=>t.toLowerCase().includes(q))) sc = 60;
+    if(sc) hits.push([sc + (p.pri||0)/20, p]);
+  }
+  hits.sort((a,b)=> b[0]-a[0] || a[1].n.localeCompare(b[1].n, 'zh'));
+  return hits.slice(0,14).map(x=>x[1]);
+}
+function acMark(){
+  [].forEach.call(cAC.children, (el,i)=>el.classList.toggle('on', i===acIdx));
+  const on = cAC.children[acIdx];
+  if(on && on.scrollIntoView) on.scrollIntoView({block:'nearest'});
+}
+function acRender(q){
+  acList = matchPeople(q); acIdx = acList.length ? 0 : -1;
+  if(!acList.length){ cAC.classList.remove('open'); cAC.innerHTML=''; return; }
+  cAC.innerHTML = acList.map((p,i)=>
+    '<div class="acitem'+(i===acIdx?' on':'')+'" data-i="'+i+'">'+
+      '<span class="nm">'+esc(p.n)+'</span>'+
+      (p.t||[]).map(t=>'<span class="tg">'+esc(t)+'</span>').join('')+
+    '</div>').join('');
+  cAC.classList.add('open');
+}
+function acPick(i){
+  const p = acList[i]; if(!p) return;
+  cName.value = [p.n].concat(p.t||[]).join('_');
+  cAC.classList.remove('open');
+  toast('已选：'+cName.value);
+  cName.focus();
+  setTimeout(()=>cAC.classList.remove('open'), 0);
+}
+cName.oninput = ()=>acRender(cName.value);
+cName.onfocus = ()=>acRender(cName.value);
+cName.onkeydown = e=>{
+  const open = cAC.classList.contains('open');
+  if(e.key==='ArrowDown'){ e.preventDefault();
+    if(!open) acRender(cName.value);
+    else { acIdx = Math.min(acIdx+1, acList.length-1); acMark(); }
+    return; }
+  if(e.key==='ArrowUp'){ e.preventDefault();
+    if(open){ acIdx = Math.max(acIdx-1, 0); acMark(); }
+    return; }
+  if(e.key==='Escape'){ cAC.classList.remove('open'); return; }
+  if(e.key==='Enter'){ e.preventDefault();
+    if(open && acIdx>=0) acPick(acIdx); else saveName();
+    return; }
+};
+cName.onblur = ()=>{
+  setTimeout(()=>cAC.classList.remove('open'), 180);
+  if(S.gid && cName.value.trim()!==nameOf(S.gid)){
+    const v = cName.value.trim();
+    if(v) S.voices[S.gid]=v; else delete S.voices[S.gid];
+    persist(); renderGlist();
+  }
+};
+cAC.onclick = e=>{ const it=e.target.closest('.acitem'); if(it) acPick(+it.dataset.i); };
+cAC.onmousemove = e=>{ const it=e.target.closest('.acitem');
+  if(it && cAC.classList.contains('open')){ acIdx=+it.dataset.i; acMark(); } };
+cReplay.onclick = ()=>playClip(S.qi<0?0:S.qi);
+cPrevClip.onclick = ()=>playClip(S.qi-1);
+cNextClip.onclick = ()=>playClip(S.qi+1);
+cSkip.onclick = skipGroup;
+cDunno.onclick = dunno;
+
+pAudio.onchange = ()=>selectProofAudio(pAudio.value);
+pFilterAll.onclick = ()=>{ S.pOnlyUnknown=false; pFilterAll.classList.add('on'); pFilterUnknown.classList.remove('on'); selectProofAudio(S.pAid); };
+pFilterUnknown.onclick = ()=>{ S.pOnlyUnknown=true; pFilterUnknown.classList.add('on'); pFilterAll.classList.remove('on'); selectProofAudio(S.pAid); };
+slist.onclick = e=>{ const el2=e.target.closest('.sitem'); if(el2) playSeg(+el2.dataset.k); };
+pChips.onclick = e=>{ const el2=e.target.closest('.chip'); if(el2) setGroup(el2.dataset.g); };
+pSearch.oninput = ()=>renderChips(S.pIdx>=0?effGroup(plist[S.pIdx]):'');
+pReplay.onclick = ()=>playSeg(S.pIdx);
+pPrev.onclick = ()=>playSeg(S.pIdx-1);
+pNext.onclick = ()=>playSeg(S.pIdx+1);
+
+waveMini.onclick = e=>{ const a=A[S.aid]; if(!a) return; const r=e.target.getBoundingClientRect();
+  const v=waveMini._view||[0,AUD[S.aid].dur]; a.currentTime = v[0]+(e.offsetX/r.width)*(v[1]-v[0]); };
+waveMini2.onclick = e=>{ const a=A[S.pAid]; if(!a) return; const r=e.target.getBoundingClientRect();
+  const v=waveMini2._view||[0,AUD[S.pAid].dur]; a.currentTime = v[0]+(e.offsetX/r.width)*(v[1]-v[0]); };
+
+document.addEventListener('keydown', e=>{
+  const typing = /input|select|textarea/i.test(e.target.tagName);
+  if((e.ctrlKey||e.metaKey) && !e.shiftKey && (e.key==='z'||e.key==='Z')){ e.preventDefault(); undo(); return; }
+  if((e.ctrlKey||e.metaKey) && e.shiftKey && (e.key==='z'||e.key==='Z')){ e.preventDefault(); redo(); return; }
+  if((e.ctrlKey||e.metaKey) && (e.key==='f'||e.key==='F')){ e.preventDefault(); btnFind.onclick(); return; }
+  if((e.ctrlKey||e.metaKey) && (e.key==='e'||e.key==='E')){ e.preventDefault(); openExport(); return; }
+  if(e.key==='s' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); exportJSON(); return; }
+  if(e.code==='Space' && !typing){ e.preventDefault(); btnPlay.onclick(); return; }
+  if(e.key==='Escape'){
+    ['dlgHelp','dlgExport','dlgCmp','dlgFind','dlgMerge','dlgSplit'].forEach(id=>{
+      const d=document.getElementById(id); if(d && d.open) d.close();
+    });
+  }
+  if(typing) return;
+  const k = e.key;
+  if(S.mode==='recruit'){
+    if(k==='Enter'){ e.preventDefault(); S.gid?focusName():null; }
+    else if(k==='Tab'){ if(S.gid && sugOf(S.gid) && !isDone(S.gid)){ e.preventDefault(); adoptSug(S.gid); } }
+    else if(k==='r'||k==='R') playClip(S.qi<0?0:S.qi);
+    else if(k==='ArrowLeft') playClip(S.qi-1);
+    else if(k==='ArrowRight') playClip(S.qi+1);
+    else if(k==='s'||k==='S') skipGroup();
+    else if(k==='x'||k==='X') dunno();
+    else if(k==='l'||k==='L') cLoop.onclick();
+    else if(k==='ArrowDown'||k==='j'){ const l=visibleGids(); const i=l.indexOf(S.gid); if(l[i+1]) selectGroup(l[i+1],false); }
+    else if(k==='ArrowUp'||k==='k'){ const l=visibleGids(); const i=l.indexOf(S.gid); if(i>0) selectGroup(l[i-1],false); }
+  } else {
+    if(k==='ArrowDown'||k==='j') playSeg(S.pIdx+1);
+    else if(k==='ArrowUp'||k==='k') playSeg(S.pIdx-1);
+    else if(k==='r'||k==='R') playSeg(S.pIdx);
+    else if(/^[1-9]$/.test(k)){ const q=(pChips._quick||[])[+k-1]; if(q) setGroup(q); }
+    else if(k==='0') setGroup('');
+  }
+});
+window.addEventListener('resize', ()=>{
+  const c=S.clips[S.qi]; if(c) reframe(waveBig,c.a,(c.s+c.e)/2,25);
+  drawMini();
+});
+
+/* ══════════════════════════ boot ══════════════════════════ */
+(function boot(){
+  // baseline from voices.json (via sync.py → data.js), unwrapping the {voices,overrides,dunno} shape
+  const ST = (D.state && typeof D.state === 'object') ? D.state : null;
+  const fromFile = Object.assign({}, (ST && ST.voices) || D.voices || {});
+  const fromOv   = (ST && ST.overrides) || {};
+  const fromDunno= (ST && ST.dunno) || {};
+  let ls = null; try{ ls = JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){}
+  // localStorage wins (it's what the user last edited here); file is the baseline
+  S.voices = Object.assign({}, fromFile, (ls&&ls.voices)||{});
+  S.overrides = Object.assign({}, fromOv, (ls&&ls.overrides)||{});
+  S.dunno = Object.assign({}, fromDunno, (ls&&ls.dunno)||{});
+  S.alias = Object.assign({}, (ST && ST.alias) || {}, (ls&&ls.alias) || {});
+  document.title = '声纹标注台 · ' + (D.audios.length) + ' 份录音';
+  renderGlist(); updateProg(); refreshFiltCounts(); refreshNameList(); initProof(); setMode('recruit');
+  renderLib(); resetUndo();
+  const first = visibleGids().find(g=>!isDone(g));
+  if(first) selectGroup(first, false);
+  else if(visibleGids()[0]) selectGroup(visibleGids()[0], false);
+  setTimeout(()=>toast('按 空格 或点 ▶ 开始连播本组'), 500);
+  const miss = D.audios.filter(a=>!a.hasSrt).map(a=>a.id);
+  if(miss.length) toast('注意：'+miss.join('/')+' 还没有转写稿，校对模式里是空的');
+})();
+</script>
+</body>
+</html>

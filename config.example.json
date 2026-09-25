@@ -1,0 +1,8 @@
+{
+  "_comment": "Optional. Copy to config.json and point these at your own data. Relative paths resolve against this folder. If the file is absent, the built-in demo layout (demo/…) is used. Environment variables VOICE_DECK_RECORDINGS / _TRANSCRIPTS / _VOICEPRINT / _OUT override everything.",
+  "recordings": "/path/to/your/recordings",
+  "transcripts": "/path/to/your/transcripts",
+  "voiceprint": "/path/to/your/voiceprint-output",
+  "out": ".",
+  "python": ""
+}

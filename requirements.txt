@@ -1,0 +1,12 @@
+# The workbench itself (index.html) needs nothing at all — it is a single
+# static file plus a data.js.
+#
+# These are only for the data pipeline (tools/sync.py, tools/make_demo.py).
+
+numpy>=1.24          # waveforms + voiceprint maths
+pypinyin>=0.49       # optional — enables pinyin search in the name box
+                     # (without it, name matching falls back to Chinese-only)
+
+# External binary you must install yourself:
+#   ffmpeg   — audio transcoding + waveform extraction
+#   https://ffmpeg.org/download.html   (or: winget install ffmpeg / brew install ffmpeg)

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" width="880" height="300" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+  <defs>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7a7a7a"/>
+    </marker>
+    <style>
+      .card{fill:#888888;fill-opacity:.09;stroke:#8a8a8a;stroke-width:1.3;rx:8}
+      .lib{fill:#888888;fill-opacity:.09;stroke:#2f81f7;stroke-width:1.6;rx:8}
+      .hit{fill:#888888;fill-opacity:.09;stroke:#3fb950;stroke-width:1.8;rx:8}
+      .lbl{fill:#4a4a4a;font-size:12.5px}
+      .sub{fill:#8a8a8a;font-size:11px}
+      .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px;fill:#4a4a4a}
+      .edge{stroke:#7a7a7a;stroke-width:1.3;fill:none;marker-end:url(#b)}
+      .ttl{fill:#7a7a7a;font-size:11.5px;font-weight:600;letter-spacing:.04em}
+      @media (prefers-color-scheme: dark){
+        .lbl{fill:#d2d2d2} .sub{fill:#9a9a9a} .ttl{fill:#a6a6a6} .mono{fill:#d2d2d2}
+        .box,.you,.ours,.card,.lib,.hit{stroke-opacity:.85}
+      }
+    </style>
+  </defs>
+
+  <text class="ttl" x="20" y="22">STEP 1 — YOU NAME A FEW GROUPS</text>
+  <rect class="card" x="20" y="34" width="230" height="46"/>
+  <text class="mono" x="34" y="54">P001  "演示甲"</text>
+  <text class="sub" x="34" y="70">16 clips across 2 recordings</text>
+  <rect class="card" x="20" y="88" width="230" height="46"/>
+  <text class="mono" x="34" y="108">P002  "演示乙"</text>
+  <text class="sub" x="34" y="124">9 clips across 2 recordings</text>
+
+  <path class="edge" d="M250,84 L300,84"/>
+  <text class="ttl" x="256" y="76">centroid</text>
+
+  <text class="ttl" x="304" y="22">STEP 2 — A VOICEPRINT LIBRARY IS BUILT</text>
+  <rect class="lib" x="304" y="34" width="250" height="100"/>
+  <text class="lbl" x="318" y="56">speakers.json</text>
+  <text class="sub" x="318" y="76">each name → 1 mean embedding (192-d)</text>
+  <text class="sub" x="318" y="94">+ which recordings they appear in</text>
+  <text class="sub" x="318" y="112">up to 80 clips sampled per person</text>
+
+  <path class="edge" d="M554,84 L604,84"/>
+
+  <text class="ttl" x="608" y="22">STEP 3 — THE REST GETS SUGGESTED</text>
+  <rect class="hit" x="608" y="34" width="252" height="100"/>
+  <text class="mono" x="622" y="54">P005  →  "演示乙"</text>
+  <text class="sub" x="622" y="74">0.980 · same recording · HIGH</text>
+  <text class="sub" x="622" y="94">press Tab to accept, Ctrl+Z to undo</text>
+  <text class="sub" x="622" y="114">weaker matches show as "? name"</text>
+
+  <text class="ttl" x="20" y="176">WHY THE THRESHOLDS ARE SPLIT IN TWO — MEASURED ON REAL FAR-FIELD AUDIO</text>
+  <rect class="card" x="20" y="188" width="840" height="92"/>
+  <text class="lbl" x="36" y="212">same recording</text>
+  <text class="sub" x="150" y="212">different people: median 0.444 · p95 0.712 · max 0.822  ｜  same person: 0.834–0.985</text>
+  <text class="mono" x="36" y="234">→ hi = 0.83</text>
+  <text class="sub" x="150" y="234">a single threshold floods you with false hits, because everybody in one room shares mic and channel</text>
+
+  <text class="lbl" x="36" y="260">across recordings</text>
+  <text class="sub" x="150" y="260">same person (≥5 clips each side): 0.913–0.936</text>
+  <text class="mono" x="36" y="278">→ hi = 0.85</text>
+  <text class="sub" x="150" y="278">reproduce with tools/calibrate.py on your own corpus</text>
+</svg>
