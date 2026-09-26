@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+暂无。
+
+## [0.2.0] — 2026-09-26
+
+一次文档与界面打磨的发布：所有面向用户的文档都有了中英双版，仓库新增了编码 agent 会原生读取的操作上下文，另外修掉了"列表滚不动"和"页面底部够不着"这两个布局 bug。
+
 ### 新增
 
 - **所有面向用户的文档都有了中文版** —— `CONTRIBUTING.zh-CN.md`、`SECURITY.zh-CN.md`、`CHANGELOG.zh-CN.md`、`docs/METHOD.zh-CN.md`、`docs/FIELD-NOTES.zh-CN.md`，与已有的 `README.zh-CN.md` 凑齐。每一对都在顶部带一行语言切换，且中文文档内部的每一个文档间链接都指向对应的中文版。
@@ -67,7 +73,7 @@
 **文档** —— 写于发布前的那一轮整理，起因是读了邻近项目（`diarize`、`WhisperX`、`pyannote.audio`、`audino`）的 README，看它们哪里做对了
 
 - `docs/ui.svg` —— 一张带标注的工作台布局示意图，让项目有一张视觉图，却不必附带截图（也就不必附带任何人的录音）
-- `docs/METHOD.zh-CN.md` 与 `docs/FIELD-NOTES.zh-CN.md` —— 方法，以及支撑那些阈值的实测现场笔记
+- `docs/METHOD.md` 与 `docs/FIELD-NOTES.md` —— 方法，以及支撑那些阈值的实测现场笔记
 - README：与 `pyannote` / `diarize` / `WhisperX` / `GECKO` / `audino` 的能力对照表；四步 *它是怎么工作的*；*什么情况下该用别的*；一段简短 roadmap；运行时依赖的许可证；内联的环境要求
 - CONTRIBUTING：一张 *改了 X 也要改 Y* 的改动对照表；两个测试套件各自的分工**以及它们都抓不到什么**；新增一种导出格式的完整示例；一份完成定义清单；隐私类 bug 的上报路径
 
@@ -96,5 +102,5 @@
 
 ### 备注
 
-- 没有 `torch`、不下载模型、运行时不访问网络。嵌入向量的提取步骤在本仓库之外；接口见 `docs/METHOD.zh-CN.md` §1 与 §6。
+- 没有 `torch`、不下载模型、运行时不访问网络。嵌入向量的提取步骤在本仓库之外；接口见 `docs/METHOD.md` §1 与 §6。
 - 自带 demo 是刻意合成的 —— 声纹属于生物识别数据，而真实的会议录音是私人内容。

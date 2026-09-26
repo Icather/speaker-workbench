@@ -6,6 +6,12 @@ All notable changes are recorded here. The format follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0] — 2026-09-26
+
+A documentation and interface-polish release: every user-facing document now exists in both languages, the repo gained operational context that coding agents read natively, and the two layout bugs behind *"the list will not scroll"* and *"the page bottom is unreachable"* are fixed.
+
 ### Added
 
 - **Chinese translations of every user-facing document** — `CONTRIBUTING.zh-CN.md`, `SECURITY.zh-CN.md`, `CHANGELOG.zh-CN.md`, `docs/METHOD.zh-CN.md` and `docs/FIELD-NOTES.zh-CN.md`, joining the existing `README.zh-CN.md`. Each pair carries a language switch at the top, and every doc-to-doc link inside a Chinese document points at its Chinese counterpart.
